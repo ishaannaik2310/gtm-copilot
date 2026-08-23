@@ -14,7 +14,15 @@ CHROMA_PERSIST_DIR = PROJECT_ROOT / os.getenv("CHROMA_PERSIST_DIR", "chroma_db")
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "400"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_CHUNK_OVERLAP", "50"))
 
-# Retrieval Configuration
+# Retrieval & Hybrid Search Configuration
 DEFAULT_EMBEDDING_MODEL = os.getenv("DEFAULT_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "5"))
+DEFAULT_INITIAL_TOP_K = int(os.getenv("DEFAULT_INITIAL_TOP_K", "10"))
+DEFAULT_RERANK_TOP_K = int(os.getenv("DEFAULT_RERANK_TOP_K", "5"))
+DEFAULT_RRF_K = int(os.getenv("DEFAULT_RRF_K", "60"))
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "gtm_knowledge_base")
+
+# Reranker Configuration
+DEFAULT_RERANKER_MODEL = os.getenv(
+    "DEFAULT_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
+)
