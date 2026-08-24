@@ -26,3 +26,16 @@ DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "gtm_knowledge_ba
 DEFAULT_RERANKER_MODEL = os.getenv(
     "DEFAULT_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
 )
+
+# LLM Provider Configuration
+DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+DEFAULT_OPENAI_MODEL = os.getenv("DEFAULT_OPENAI_MODEL", "gpt-4o-mini")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+DEFAULT_ANTHROPIC_MODEL = os.getenv(
+    "DEFAULT_ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"
+)
+
+# Web Ingestion & Scraping Configuration
+WEB_FETCH_TIMEOUT_SECONDS = float(os.getenv("WEB_FETCH_TIMEOUT_SECONDS", "10.0"))
+MAX_WEB_CONTENT_CHARS = int(os.getenv("MAX_WEB_CONTENT_CHARS", "8000"))
