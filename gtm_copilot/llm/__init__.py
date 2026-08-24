@@ -3,56 +3,47 @@
 import os
 from typing import Optional
 
-from gtm_copilot.config import (
-    ANTHROPIC_API_KEY,
-    DEFAULT_ANTHROPIC_MODEL,
-    DEFAULT_LLM_PROVIDER,
-    DEFAULT_OPENAI_MODEL,
-    OPENAI_API_KEY,
-)
-from gtm_copilot.llm.anthropic_provider import AnthropicProvider
+from gtm_copilot.config import DEFAULT_GEMINI_MODEL, GEMINI_API_KEY
 from gtm_copilot.llm.base import LLMProvider
+from gtm_copilot.llm.gemini_provider import GeminiProvider
 from gtm_copilot.llm.json_utils import extract_json
-from gtm_copilot.llm.openai_provider import OpenAIProvider
 
 
-def get_llm_provider(
-    provider_name: Optional[str] = None,
+def get_default_llm_provider(
     api_key: Optional[str] = None,
     model: Optional[str] = None,
     **kwargs,
 ) -> LLMProvider:
-    """Factory helper to obtain configured LLM provider instance.
+    """Factory helper to obtain configured Gemini LLM provider instance.
 
     Args:
-        provider_name: 'openai' or 'anthropic'. Defaults to config.DEFAULT_LLM_PROVIDER.
-        api_key: Optional explicit API key.
-        model: Optional model name override.
+        api_key: Optional explicit API key. Defaults to GEMINI_API_KEY.
+        model: Optional model name override. Defaults to DEFAULT_GEMINI_MODEL.
         **kwargs: Additional provider arguments.
 
     Returns:
-        Configured LLMProvider instance.
+        Configured GeminiProvider instance.
     """
-    chosen_provider = (provider_name or DEFAULT_LLM_PROVIDER or "openai").lower().strip()
-
-    if chosen_provider == "anthropic":
-        return AnthropicProvider(
-            api_key=api_key or ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY", ""),
-            model=model or DEFAULT_ANTHROPIC_MODEL,
-            **kwargs,
-        )
-
-    return OpenAIProvider(
-        api_key=api_key or OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", ""),
-        model=model or DEFAULT_OPENAI_MODEL,
+    return GeminiProvider(
+        api_key=api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", ""),
+        model=model or DEFAULT_GEMINI_MODEL,
         **kwargs,
     )
 
 
+def get_llm_provider(
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    **kwargs,
+) -> LLMProvider:
+    """Alias for get_default_llm_provider."""
+    return get_default_llm_provider(api_key=api_key, model=model, **kwargs)
+
+
 __all__ = [
-    "AnthropicProvider",
+    "GeminiProvider",
     "LLMProvider",
-    "OpenAIProvider",
     "extract_json",
+    "get_default_llm_provider",
     "get_llm_provider",
 ]

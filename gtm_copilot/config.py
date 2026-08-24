@@ -27,14 +27,9 @@ DEFAULT_RERANKER_MODEL = os.getenv(
     "DEFAULT_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"
 )
 
-# LLM Provider Configuration
-DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-DEFAULT_OPENAI_MODEL = os.getenv("DEFAULT_OPENAI_MODEL", "gpt-4o-mini")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-DEFAULT_ANTHROPIC_MODEL = os.getenv(
-    "DEFAULT_ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"
-)
+# LLM Provider Configuration (Google Gemini)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEFAULT_GEMINI_MODEL = os.getenv("DEFAULT_GEMINI_MODEL", "gemini-2.0-flash")
 
 # Web Ingestion & Scraping Configuration
 WEB_FETCH_TIMEOUT_SECONDS = float(os.getenv("WEB_FETCH_TIMEOUT_SECONDS", "10.0"))
