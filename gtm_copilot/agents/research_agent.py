@@ -204,12 +204,12 @@ class ResearchAgent(BaseAgent):
             if fetch_err:
                 errors.append(fetch_err)
             elif web_text:
-                raw_context_used.append(f"[Web Content from {input.url}]: {web_text[:400]}...")
+                raw_context_used.append(f"[Web Content from {input.url}]:\n{web_text}")
 
         # 2. Retrieve internal knowledge base context
         internal_chunks = await self.retrieve_internal_context(input.company_name, input.url)
         for chunk_text in internal_chunks:
-            raw_context_used.append(f"[Internal Knowledge Base]: {chunk_text[:300]}...")
+            raw_context_used.append(f"[Internal Knowledge Base]:\n{chunk_text}")
 
         # 3. Build prompt and query LLM
         prompt = self.build_prompt(

@@ -116,3 +116,110 @@ class ResearchOutput(BaseModel):
         default_factory=list,
         description="Any non-fatal error messages encountered during web retrieval or extraction.",
     )
+
+
+class ICPClassification(BaseModel):
+    """Evaluation of how well a target company aligns with internal ICP criteria."""
+
+    fit_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Fit score between 0.0 (poor) and 1.0 (perfect), or None if unknown/failed.",
+    )
+    fit_label: Literal["strong_fit", "possible_fit", "poor_fit", "unknown"] = Field(
+        ...,
+        description="Discrete classification label based on playbook criteria.",
+    )
+    rationale: str = Field(
+        ...,
+        description="Detailed explanation of the ICP fit evaluation and evidence mapping.",
+    )
+    matched_criteria: List[str] = Field(
+        default_factory=list,
+        description="List of specific ICP criteria explicitly satisfied by company signals.",
+    )
+    mismatched_criteria: List[str] = Field(
+        default_factory=list,
+        description="List of specific ICP criteria that company signals fail or contradict.",
+    )
+
+
+class AccountBrief(BaseModel):
+    """Actionable account intelligence brief synthesized for sales and GTM teams."""
+
+    company_name: str = Field(..., description="Target company name.")
+    industry: Optional[str] = Field(default=None, description="Primary industry sector.")
+    icp_classification: ICPClassification = Field(
+        ...,
+        description="ICP fit classification and criteria breakdown.",
+    )
+    executive_summary: str = Field(
+        ...,
+        description="High-level narrative summary of company business and fit.",
+    )
+    key_products_or_services: List[str] = Field(
+        default_factory=list,
+        description="Core products and offerings identified.",
+    )
+    likely_pain_points: List[str] = Field(
+        default_factory=list,
+        description="Anticipated business or technical challenges mapped to our solution.",
+    )
+    suggested_talk_tracks: List[str] = Field(
+        default_factory=list,
+        description="Targeted conversation starters and value propositions from sales playbooks.",
+    )
+    objection_handling_notes: List[str] = Field(
+        default_factory=list,
+        description="Anticipated buyer objections and recommended response guidance.",
+    )
+    source_urls: List[str] = Field(
+        default_factory=list,
+        description="Reference URLs and source materials used to compile the brief.",
+    )
+
+
+class FactCheckResult(BaseModel):
+    """Verification assessment for a specific factual claim in an AccountBrief."""
+
+    claim: str = Field(..., description="The factual statement or assertion being verified.")
+    status: Literal["directly_supported", "reasonable_inference", "unsupported"] = Field(
+        default="directly_supported",
+        description="Verification category: directly_supported (explicit quote), reasonable_inference (logically follows from grounded facts), or unsupported (genuine fabrication).",
+    )
+    supported: bool = Field(
+        default=True,
+        description="True if directly_supported or reasonable_inference, False if unsupported.",
+    )
+    supporting_evidence: Optional[str] = Field(
+        default=None,
+        description="Direct snippet or quote from the source context supporting or refuting the claim.",
+    )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score in the verification judgment.",
+    )
+
+
+class FactCheckedBrief(BaseModel):
+    """Final verified AccountBrief package with per-claim audit results and faithfulness score."""
+
+    brief: AccountBrief = Field(..., description="The synthesized account brief.")
+    fact_checks: List[FactCheckResult] = Field(
+        default_factory=list,
+        description="Detailed verification results for all audited claims.",
+    )
+    overall_faithfulness_score: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Proportion of verified claims supported by source evidence (0.0 to 1.0).",
+    )
+    flagged_claims: List[str] = Field(
+        default_factory=list,
+        description="List of claims that failed fact-checking (unsupported or hallucinated).",
+    )
+

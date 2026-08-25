@@ -60,3 +60,13 @@ pytest tests/ -v
 - **`Document`**: Represents a raw ingested document (`source_type`: `playbook`, `account_data`, or `web`).
 - **`Chunk`**: Represents an indexed text chunk with metadata and optional embedding vector.
 - **`Account`**: Represents a target account profile with domain, company name, and industry attributes.
+
+---
+
+## Known Limitations
+
+**Fact-checking catches fabrication, not weak reasoning.** The FactCheckAgent distinguishes three claim types: directly stated in source text, reasonable inference from grounded facts, and unsupported/fabricated. This reliably catches claims with no basis in the source material — during development it correctly flagged a hallucinated legal entity name and caught pain points that were actually mislabeled objection-handling content from the wrong section of the playbook.
+
+However, it does not yet evaluate the *logical soundness* of an inference — only whether the cited supporting facts are real. A claim can pass as "reasonable_inference" if it cites genuine source facts, even if the logical connection between those facts and the conclusion is weak (e.g. "our playbook cares about X, therefore this company struggles with X" is a non-sequitur that can still pass because the cited facts are real). Judging reasoning quality, not just fact presence, is a substantially harder problem — this is a known open challenge in LLM-as-judge evaluation generally, not specific to this implementation.
+
+**Future work:** a dedicated logical-consistency check, or a second-pass "steelman the opposite" prompt that tries to argue against each inference before accepting it.

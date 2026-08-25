@@ -31,7 +31,7 @@ DEFAULT_RERANKER_MODEL = (
 
 # LLM Provider Configuration (Google Gemini)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or ""
-DEFAULT_GEMINI_MODEL = os.getenv("DEFAULT_GEMINI_MODEL") or "gemini-3.6-flash"
+DEFAULT_GEMINI_MODEL = os.getenv("DEFAULT_GEMINI_MODEL") or "gemini-3.5-flash"
 
 # Web Ingestion & Scraping Configuration
 WEB_FETCH_TIMEOUT_SECONDS = float(os.getenv("WEB_FETCH_TIMEOUT_SECONDS") or "10.0")

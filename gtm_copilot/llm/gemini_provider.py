@@ -1,5 +1,6 @@
 """Gemini LLM provider using direct async HTTP calls via httpx."""
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -82,13 +83,43 @@ class GeminiProvider(LLMProvider):
 
         url = f"{self.base_url}/models/{self.model}:generateContent?key={resolved_key}"
 
-        if self._client is not None:
-            response = await self._client.post(url, json=payload, headers=headers, timeout=self.timeout)
-        else:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=payload, headers=headers)
+        max_attempts = 4
+        response = None
 
-        if response.status_code != 200:
+        for attempt in range(1, max_attempts + 1):
+            if self._client is not None:
+                response = await self._client.post(url, json=payload, headers=headers, timeout=self.timeout)
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(url, json=payload, headers=headers)
+
+            if response.status_code == 200:
+                break
+
+            if response.status_code in (429, 500, 502, 503) and attempt < max_attempts:
+                # Extract retry delay from response or use progressive backoff
+                retry_delay = 3.0 * attempt
+                if response.status_code == 429:
+                    try:
+                        err_json = response.json()
+                        for detail in err_json.get("error", {}).get("details", []):
+                            if "retryDelay" in detail:
+                                delay_str = str(detail["retryDelay"]).rstrip("s")
+                                retry_delay = float(delay_str) + 1.0
+                                break
+                    except Exception:
+                        pass
+                logger.warning(
+                    "Gemini API transient error (%d). Retrying in %.1fs (attempt %d/%d)...",
+                    response.status_code,
+                    retry_delay,
+                    attempt,
+                    max_attempts,
+                )
+                await asyncio.sleep(retry_delay)
+                continue
+
+            # Non-retryable error or exhausted attempts
             logger.error("Gemini API error %d: %s", response.status_code, response.text)
             raise RuntimeError(f"Gemini API request failed ({response.status_code}): {response.text}")
 
