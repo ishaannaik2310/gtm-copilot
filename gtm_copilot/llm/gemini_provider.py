@@ -28,7 +28,7 @@ class GeminiProvider(LLMProvider):
 
         Args:
             api_key: Google Gemini API key. Defaults to GEMINI_API_KEY from environment.
-            model: Model identifier (e.g. 'gemini-2.0-flash').
+            model: Model identifier (e.g. 'gemini-3.5-flash').
             base_url: Base endpoint URL for Gemini API.
             timeout: Request timeout in seconds.
             client: Optional httpx.AsyncClient instance for testing/dependency injection.
@@ -83,7 +83,7 @@ class GeminiProvider(LLMProvider):
 
         url = f"{self.base_url}/models/{self.model}:generateContent?key={resolved_key}"
 
-        max_attempts = 4
+        max_attempts = 3
         response = None
 
         for attempt in range(1, max_attempts + 1):
@@ -96,21 +96,17 @@ class GeminiProvider(LLMProvider):
             if response.status_code == 200:
                 break
 
-            if response.status_code in (429, 500, 502, 503) and attempt < max_attempts:
-                # Extract retry delay from response or use progressive backoff
-                retry_delay = 3.0 * attempt
-                if response.status_code == 429:
-                    try:
-                        err_json = response.json()
-                        for detail in err_json.get("error", {}).get("details", []):
-                            if "retryDelay" in detail:
-                                delay_str = str(detail["retryDelay"]).rstrip("s")
-                                retry_delay = float(delay_str) + 1.0
-                                break
-                    except Exception:
-                        pass
+            # On 429 (quota exceeded), do NOT retry; fail immediately with a clear message
+            if response.status_code == 429:
+                err_msg = "Gemini API daily quota exceeded for this model. Try again later or switch models."
+                logger.error("Gemini API 429 Quota Exceeded: %s (%s)", err_msg, response.text)
+                raise RuntimeError(f"Gemini API request failed (429): {err_msg}")
+
+            # On 503 (UNAVAILABLE / high demand) and transient 5xx errors: retry with backoff
+            if response.status_code in (500, 502, 503) and attempt < max_attempts:
+                retry_delay = 2.0 * (2 ** (attempt - 1))
                 logger.warning(
-                    "Gemini API transient error (%d). Retrying in %.1fs (attempt %d/%d)...",
+                    "Gemini API transient server error (%d). Retrying in %.1fs (attempt %d/%d)...",
                     response.status_code,
                     retry_delay,
                     attempt,

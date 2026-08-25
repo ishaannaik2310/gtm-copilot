@@ -54,6 +54,16 @@ pip install pytest pytest-asyncio
 pytest tests/ -v
 ```
 
+### 3. Start Backend API Server
+```bash
+# Using development runner:
+python run_dev.py
+
+# Or via uvicorn directly:
+uvicorn gtm_copilot.api.main:app --reload --port 8000
+```
+Interactive Swagger API documentation will be available at: `http://127.0.0.1:8000/docs`
+
 ---
 
 ## 🧩 Data Models (Pydantic v2)

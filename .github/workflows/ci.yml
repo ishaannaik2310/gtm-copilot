@@ -16,7 +16,7 @@ jobs:
 
     env:
       GEMINI_API_KEY: "dummy-test-key-for-ci"
-      DEFAULT_GEMINI_MODEL: "gemini-3.6-flash"
+      DEFAULT_GEMINI_MODEL: "gemini-3.5-flash"
       TOKENIZERS_PARALLELISM: "false"
 
     steps:

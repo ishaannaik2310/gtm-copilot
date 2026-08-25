@@ -1,5 +1,6 @@
 """Orchestrator coordinating the end-to-end Account Brief generation pipeline."""
 
+import asyncio
 from typing import Optional
 import logging
 
@@ -86,9 +87,15 @@ class AccountBriefOrchestrator:
         logger.info("[1/4] Executing ResearchAgent...")
         research_output = await self.research_agent.run(input)
 
+        # Delay to stay within free-tier rate limits
+        await asyncio.sleep(2.5)
+
         # 2. ICP Classifier Stage
         logger.info("[2/4] Executing ICPClassifierAgent...")
         icp_classification = await self.icp_agent.run(research_output)
+
+        # Delay to stay within free-tier rate limits
+        await asyncio.sleep(2.5)
 
         # 3. Synthesis Stage
         logger.info("[3/4] Executing SynthesisAgent...")
@@ -96,6 +103,9 @@ class AccountBriefOrchestrator:
             research_output=research_output,
             icp_classification=icp_classification,
         )
+
+        # Delay to stay within free-tier rate limits
+        await asyncio.sleep(2.5)
 
         # 4. Fact-Checking Stage
         logger.info("[4/4] Executing FactCheckAgent...")
