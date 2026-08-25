@@ -55,7 +55,8 @@ async def test_gemini_provider_complete_success():
 
 
 @pytest.mark.asyncio
-async def test_gemini_provider_missing_key():
+async def test_gemini_provider_missing_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     provider = GeminiProvider(api_key="")
     with pytest.raises(ValueError, match="Gemini API key is missing"):
         await provider.complete(prompt="hello")

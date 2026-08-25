@@ -20,7 +20,7 @@ class GeminiProvider(LLMProvider):
         api_key: Optional[str] = None,
         model: str = DEFAULT_GEMINI_MODEL,
         base_url: str = "https://generativelanguage.googleapis.com/v1beta",
-        timeout: float = 30.0,
+        timeout: float = 60.0,
         client: Optional[httpx.AsyncClient] = None,
     ):
         """Initialize GeminiProvider.
@@ -32,7 +32,7 @@ class GeminiProvider(LLMProvider):
             timeout: Request timeout in seconds.
             client: Optional httpx.AsyncClient instance for testing/dependency injection.
         """
-        self.api_key = api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+        self.api_key = api_key if api_key is not None else (os.getenv("GEMINI_API_KEY") or "")
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -45,10 +45,12 @@ class GeminiProvider(LLMProvider):
         **kwargs: Any,
     ) -> str:
         """Send generation request to Google Gemini API."""
-        if not self.api_key:
+        resolved_key = self.api_key if self.api_key else (os.getenv("GEMINI_API_KEY") or "")
+        if not resolved_key:
             raise ValueError(
                 "Gemini API key is missing. Set GEMINI_API_KEY environment variable or pass api_key."
             )
+        self.api_key = resolved_key
 
         payload: Dict[str, Any] = {
             "contents": [
@@ -75,10 +77,10 @@ class GeminiProvider(LLMProvider):
 
         headers = {
             "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key,
+            "x-goog-api-key": resolved_key,
         }
 
-        url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
+        url = f"{self.base_url}/models/{self.model}:generateContent?key={resolved_key}"
 
         if self._client is not None:
             response = await self._client.post(url, json=payload, headers=headers, timeout=self.timeout)
