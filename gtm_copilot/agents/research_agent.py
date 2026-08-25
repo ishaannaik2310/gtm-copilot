@@ -3,7 +3,7 @@
 import html
 import logging
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
