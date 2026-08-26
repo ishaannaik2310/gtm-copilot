@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GTM Ops Copilot — Fact-Checked Account Intelligence",
-  description: "AI-driven researched and fact-checked account brief generator with deterministic claim auditing for high-velocity sales teams.",
+  title: "GTM Copilot — Account Intelligence & Grounded Outreach",
+  description: "Enterprise sales intelligence & verifiable cold outreach generator with deterministic claim auditing.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="antialiased font-sans text-slate-200 bg-obsidian-950 min-h-screen selection:bg-emerald-500/20 selection:text-emerald-300">
+      <body className="antialiased font-sans text-neutral-100 bg-black min-h-[100dvh] selection:bg-neutral-800 selection:text-white">
         {children}
       </body>
     </html>
