@@ -97,6 +97,22 @@ class MockFactCheckAgent(BaseAgent):
             flagged_claims=[],
         )
 
+    async def run_outreach(self, outreach, source_context: Optional[List[str]] = None):
+        from gtm_copilot.models import FactCheckedOutreach
+        return FactCheckedOutreach(
+            outreach=outreach,
+            fact_checks=[
+                FactCheckResult(
+                    claim="Sample outreach assertion.",
+                    supported=True,
+                    supporting_evidence="Source context confirms.",
+                    confidence=0.95,
+                )
+            ],
+            overall_faithfulness_score=1.0,
+            flagged_claims=[],
+        )
+
 
 @pytest.mark.asyncio
 async def test_orchestrator_full_chain_success():
@@ -158,3 +174,92 @@ async def test_orchestrator_halts_when_synthesis_fails():
     inp = ResearchInput(company_name="CloudScale")
     with pytest.raises(RuntimeError, match="Synthesis failed"):
         await orchestrator.run(inp)
+
+
+class MockOutreachAgent(BaseAgent):
+    """Mock OutreachAgent."""
+
+    def __init__(self, should_fail: bool = False):
+        super().__init__(name="mock_outreach_agent")
+        self.should_fail = should_fail
+
+    async def run(self, input):
+        from gtm_copilot.models import EmailVariant, FollowUpVariant, OutreachOutput
+        if self.should_fail:
+            raise RuntimeError("Outreach generation failed: model error.")
+        return OutreachOutput(
+            contact_name=input.contact_name,
+            email_variants=[
+                EmailVariant(
+                    subject="Quick question on Kubernetes Observability",
+                    body="Hi, saw your work at CloudScale Data.",
+                    tone_label="direct",
+                )
+            ],
+            follow_up_sequence=[
+                FollowUpVariant(
+                    subject="Following up on Kubernetes Observability",
+                    body="Just following up on my previous note.",
+                    send_after_days=3,
+                    sequence_position=1,
+                )
+            ],
+            personalization_notes=["CloudScale focus"],
+            source_grounding=["Grounding snippet"],
+        )
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_generate_outreach_success():
+    from gtm_copilot.models import OutreachInput, FactCheckedOutreach
+
+    brief = AccountBrief(
+        company_name="CloudScale Data Inc",
+        industry="DevOps",
+        icp_classification=ICPClassification(fit_score=0.9, fit_label="strong_fit", rationale="Good"),
+        executive_summary="Executive summary",
+        key_products_or_services=["Kubernetes Observability"],
+        likely_pain_points=["Scale"],
+        suggested_talk_tracks=["Track 1"],
+        objection_handling_notes=["Note 1"],
+        source_urls=["https://cloudscaledata.io"],
+    )
+
+    orchestrator = AccountBriefOrchestrator(
+        outreach_agent=MockOutreachAgent(should_fail=False),
+        fact_check_agent=MockFactCheckAgent(),
+    )
+
+    inp = OutreachInput(account_brief=brief, contact_name="Jordan Lee")
+    result = await orchestrator.generate_outreach(inp)
+
+    assert isinstance(result, FactCheckedOutreach)
+    assert result.outreach.contact_name == "Jordan Lee"
+    assert len(result.outreach.email_variants) == 1
+    assert result.overall_faithfulness_score == 1.0
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_generate_outreach_failure():
+    from gtm_copilot.models import OutreachInput
+
+    brief = AccountBrief(
+        company_name="CloudScale Data Inc",
+        industry="DevOps",
+        icp_classification=ICPClassification(fit_score=0.9, fit_label="strong_fit", rationale="Good"),
+        executive_summary="Executive summary",
+        key_products_or_services=["Kubernetes Observability"],
+        likely_pain_points=["Scale"],
+        suggested_talk_tracks=["Track 1"],
+        objection_handling_notes=["Note 1"],
+        source_urls=[],
+    )
+
+    orchestrator = AccountBriefOrchestrator(
+        outreach_agent=MockOutreachAgent(should_fail=True),
+    )
+
+    inp = OutreachInput(account_brief=brief)
+    with pytest.raises(RuntimeError, match="Outreach generation failed"):
+        await orchestrator.generate_outreach(inp)
+

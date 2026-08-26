@@ -64,6 +64,14 @@ uvicorn gtm_copilot.api.main:app --reload --port 8000
 ```
 Interactive Swagger API documentation will be available at: `http://127.0.0.1:8000/docs`
 
+### 4. Start Next.js Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The web dashboard will be available at: `http://localhost:3000`
+
 ---
 
 ## 🧩 Data Models (Pydantic v2)

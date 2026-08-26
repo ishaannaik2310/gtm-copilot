@@ -1,4 +1,4 @@
-"""FastAPI application exposing GTM Ops Copilot account brief generation endpoints."""
+"""FastAPI application exposing GTM Ops Copilot account brief and outreach generation endpoints."""
 
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
@@ -12,7 +12,13 @@ from pydantic import BaseModel, Field
 from gtm_copilot.ingestion.chunker import chunk_documents
 from gtm_copilot.ingestion.loader import load_documents
 from gtm_copilot.llm import get_default_llm_provider
-from gtm_copilot.models import FactCheckedBrief, ResearchInput
+from gtm_copilot.models import (
+    AccountBrief,
+    FactCheckedBrief,
+    FactCheckedOutreach,
+    OutreachInput,
+    ResearchInput,
+)
 from gtm_copilot.orchestrator import AccountBriefOrchestrator
 from gtm_copilot.retrieval.bm25_retriever import BM25Retriever
 from gtm_copilot.retrieval.hybrid_retriever import HybridRetriever
@@ -34,6 +40,27 @@ class BriefRequest(BaseModel):
         default=None,
         description="Target company homepage or website URL.",
         examples=["https://www.notion.so"],
+    )
+
+
+class OutreachRequest(BaseModel):
+    """Request payload for generating personalized cold outreach sequences."""
+
+    account_brief: AccountBrief = Field(
+        ...,
+        description="The target AccountBrief to base the outreach on.",
+    )
+    contact_name: Optional[str] = Field(
+        default=None,
+        description="Optional prospect contact name.",
+    )
+    contact_role: Optional[str] = Field(
+        default=None,
+        description="Optional prospect title or role.",
+    )
+    contact_linkedin_or_notes: Optional[str] = Field(
+        default=None,
+        description="Optional unstructured notes or context about the prospect.",
     )
 
 
@@ -78,8 +105,8 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance."""
     application = FastAPI(
         title="GTM Ops Copilot API",
-        description="AI-driven researched and fact-checked account brief generation API.",
-        version="0.1.0",
+        description="AI-driven researched and fact-checked account brief and outreach generation API.",
+        version="0.2.0",
         lifespan=lifespan,
     )
 
@@ -103,17 +130,7 @@ def create_app() -> FastAPI:
         status_code=status.HTTP_200_OK,
     )
     async def generate_brief(request: BriefRequest) -> FactCheckedBrief:
-        """Generate a fully researched, synthesized, and fact-checked account brief.
-
-        Args:
-            request: JSON payload with company_name and/or url.
-
-        Returns:
-            FactCheckedBrief model.
-
-        Raises:
-            HTTPException: 400 if both inputs are missing/blank, 500 on pipeline failure.
-        """
+        """Generate a fully researched, synthesized, and fact-checked account brief."""
         has_name = bool(request.company_name and request.company_name.strip())
         has_url = bool(request.url and request.url.strip())
 
@@ -147,6 +164,43 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Account brief generation failed: {err_msg}",
+            )
+
+    @application.post(
+        "/api/outreach",
+        response_model=FactCheckedOutreach,
+        status_code=status.HTTP_200_OK,
+    )
+    async def generate_outreach_endpoint(request: OutreachRequest) -> FactCheckedOutreach:
+        """Generate a personalized, battlecard-aligned, and fact-checked outreach sequence."""
+        if not request.account_brief.company_name or not request.account_brief.company_name.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid AccountBrief: 'company_name' must not be empty.",
+            )
+
+        outreach_input = OutreachInput(
+            account_brief=request.account_brief,
+            contact_name=request.contact_name.strip() if request.contact_name else None,
+            contact_role=request.contact_role.strip() if request.contact_role else None,
+            contact_linkedin_or_notes=request.contact_linkedin_or_notes.strip()
+            if request.contact_linkedin_or_notes
+            else None,
+        )
+
+        orchestrator: Optional[AccountBriefOrchestrator] = getattr(application.state, "orchestrator", None)
+        if orchestrator is None:
+            orchestrator = AccountBriefOrchestrator()
+
+        try:
+            outreach_result = await orchestrator.generate_outreach(outreach_input)
+            return outreach_result
+        except Exception as e:
+            err_msg = str(e) or repr(e)
+            logger.error("Pipeline failure in /api/outreach: %s", err_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Outreach generation failed: {err_msg}",
             )
 
     return application

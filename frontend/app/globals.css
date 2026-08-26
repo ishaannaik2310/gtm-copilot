@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  color: #E2E8F0;
+  background-color: #06090F;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  min-height: 100vh;
+}
+
+/* Custom crisp telemetry scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B111D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #22314E;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334568;
+}
+
+/* Subtle architectural grid pattern */
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.radar-sweep {
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(16, 185, 129, 0) 0deg,
+    rgba(16, 185, 129, 0.2) 60deg,
+    rgba(16, 185, 129, 0) 120deg
+  );
+}

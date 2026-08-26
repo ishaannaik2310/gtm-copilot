@@ -186,3 +186,86 @@ async def test_fact_check_llm_exception_fallback(sample_brief):
 
     assert isinstance(result, FactCheckedBrief)
     assert result.brief == sample_brief
+
+
+def test_fact_check_extract_outreach_claims():
+    from gtm_copilot.models import EmailVariant, FollowUpVariant, OutreachOutput
+
+    outreach = OutreachOutput(
+        contact_name="Alex",
+        email_variants=[
+            EmailVariant(
+                subject="Accelerating Kubernetes monitoring",
+                body="Hi Alex, noticed CloudScale scaling its Kubernetes Monitor. We help engineering leaders streamline incident workflows.",
+                tone_label="direct",
+            )
+        ],
+        follow_up_sequence=[
+            FollowUpVariant(
+                subject="Re: Accelerating Kubernetes monitoring",
+                body="Following up on our incident management automation discussion.",
+                send_after_days=3,
+                sequence_position=1,
+            )
+        ],
+        personalization_notes=["Targeted Kubernetes Monitor product."],
+        source_grounding=["Source 1"],
+    )
+
+    agent = FactCheckAgent(llm_provider=MockLLMProvider("{}"))
+    claims = agent.extract_outreach_claims(outreach)
+
+    assert len(claims) >= 3
+    assert any("Kubernetes monitoring" in c for c in claims)
+    assert any("Personalization Signal" in c for c in claims)
+
+
+@pytest.mark.asyncio
+async def test_fact_check_outreach_supported():
+    from gtm_copilot.models import EmailVariant, FollowUpVariant, OutreachOutput, FactCheckedOutreach
+
+    outreach = OutreachOutput(
+        contact_name="Alex",
+        email_variants=[
+            EmailVariant(
+                subject="Cut incident prep time",
+                body="CloudScale Data delivers automated Kubernetes observability to Series B high-growth teams.",
+                tone_label="direct",
+            )
+        ],
+        follow_up_sequence=[
+            FollowUpVariant(
+                subject="Re: Cut incident prep time",
+                body="Following up regarding our telemetry integration.",
+                send_after_days=3,
+                sequence_position=1,
+            )
+        ],
+        personalization_notes=["CloudScale Series B data stack"],
+        source_grounding=["CloudScale Data delivers automated Kubernetes observability."],
+    )
+
+    llm_payload = {
+        "verifications": [
+            {
+                "claim": "CloudScale Data delivers automated Kubernetes observability to Series B high-growth teams.",
+                "status": "directly_supported",
+                "supported": True,
+                "supporting_evidence": "Found in source text.",
+                "confidence": 0.99,
+            }
+        ]
+    }
+
+    mock_llm = MockLLMProvider(response_text=json.dumps(llm_payload))
+    agent = FactCheckAgent(llm_provider=mock_llm)
+
+    result = await agent.run_outreach(
+        outreach=outreach,
+        source_context=["CloudScale Data delivers automated Kubernetes observability to Series B high-growth teams."],
+    )
+
+    assert isinstance(result, FactCheckedOutreach)
+    assert result.overall_faithfulness_score == 1.0
+    assert len(result.flagged_claims) == 0
+
