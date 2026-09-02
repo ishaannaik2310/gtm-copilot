@@ -1,8 +1,9 @@
 """FastAPI application exposing GTM Ops Copilot account brief and outreach generation endpoints."""
 
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import logging
+import os
 
 import chromadb
 from fastapi import FastAPI, HTTPException, status
@@ -110,10 +111,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Enable CORS for development & frontend integration
+    # CORS — read allowed origins from ALLOWED_ORIGINS env var (comma-separated).
+    # Defaults to localhost:3000 for local development. MUST be set explicitly in production.
+    _raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
+    allowed_origins: List[str] = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
