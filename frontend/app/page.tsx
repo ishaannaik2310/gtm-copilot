@@ -27,8 +27,10 @@ import {
   Compass,
   FileSearch,
   ChevronRight,
+  ChevronDown,
   Clock,
   Layers,
+  Lock,
 } from "lucide-react";
 import type {
   AccountBrief,
@@ -90,6 +92,7 @@ export default function Home() {
   );
   const [isLoadingOutreach, setIsLoadingOutreach] = useState(false);
   const [selectedEmailToneIndex, setSelectedEmailToneIndex] = useState(0);
+  const [showDossierCheatSheet, setShowDossierCheatSheet] = useState(false);
 
   // Results
   const [briefResult, setBriefResult] = useState<FactCheckedBrief | null>(null);
@@ -156,6 +159,7 @@ export default function Home() {
     setOutreachResult(null);
     setSelectedClaim(null);
     setIsLoadingBrief(true);
+    setActiveTab("brief");
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/brief`, {
@@ -330,7 +334,7 @@ export default function Home() {
             </div>
             <div className="h-4 w-[1px] bg-neutral-800"></div>
             <span className="text-xs text-neutral-400 hidden sm:inline-block">
-              Sales Intelligence & Outreach
+              Sales Intelligence & Grounded Outreach Funnel
             </span>
           </div>
 
@@ -344,7 +348,111 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-20">
+        {/* User-Facing 2-Step Funnel Indicator */}
+        <div className="mb-6 p-1.5 rounded-xl bg-[#0A0A0A] border border-neutral-800 flex items-center justify-between shadow-lg">
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {/* Step 1: Research & Qualify */}
+            <button
+              type="button"
+              onClick={() => {
+                if (briefResult) setActiveTab("brief");
+              }}
+              className={`p-3 rounded-lg border text-left transition-all flex items-center justify-between cursor-pointer ${
+                activeTab === "brief"
+                  ? "bg-neutral-900 border-neutral-700 text-white shadow-sm"
+                  : briefResult
+                  ? "bg-neutral-950/40 border-neutral-800/80 text-neutral-300 hover:border-neutral-700"
+                  : "bg-neutral-950/20 border-neutral-900 text-neutral-400"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
+                    briefResult
+                      ? "bg-emerald-950 text-emerald-400 border border-emerald-800/60"
+                      : activeTab === "brief"
+                      ? "bg-white text-black"
+                      : "bg-neutral-800 text-neutral-400"
+                  }`}
+                >
+                  {briefResult ? "✓" : "1"}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    1. Research & Qualify
+                  </div>
+                  <div className="text-[11px] text-neutral-500">
+                    {isLoadingBrief
+                      ? "Researching & ICP Scoring..."
+                      : briefResult
+                      ? `${briefResult.brief.company_name} Qualified • Brief Ready`
+                      : "Target website scraping & ICP fit"}
+                  </div>
+                </div>
+              </div>
+              {briefResult && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700 hidden sm:inline-block">
+                  View Brief
+                </span>
+              )}
+            </button>
+
+            {/* Step 2: Grounded Outreach */}
+            <button
+              type="button"
+              onClick={() => {
+                if (briefResult) setActiveTab("outreach");
+                else setError("Run Research & Qualify first to unlock the Outreach step.");
+              }}
+              className={`p-3 rounded-lg border text-left transition-all flex items-center justify-between cursor-pointer ${
+                activeTab === "outreach"
+                  ? "bg-neutral-900 border-neutral-700 text-white shadow-sm"
+                  : outreachResult
+                  ? "bg-neutral-950/40 border-neutral-800/80 text-neutral-300 hover:border-neutral-700"
+                  : briefResult
+                  ? "bg-neutral-950/40 border-emerald-900/40 text-neutral-300 hover:border-emerald-800/60"
+                  : "bg-neutral-950/20 border-neutral-900 text-neutral-500 cursor-not-allowed"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
+                    outreachResult
+                      ? "bg-emerald-950 text-emerald-400 border border-emerald-800/60"
+                      : activeTab === "outreach"
+                      ? "bg-white text-black"
+                      : briefResult
+                      ? "bg-neutral-800 text-emerald-400 border border-emerald-800/50"
+                      : "bg-neutral-900 text-neutral-600"
+                  }`}
+                >
+                  {outreachResult ? "✓" : briefResult ? "2" : <Lock className="w-3 h-3" />}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    2. Grounded Outreach
+                  </div>
+                  <div className="text-[11px] text-neutral-500">
+                    {isLoadingOutreach
+                      ? "Generating 4 tone variants..."
+                      : outreachResult
+                      ? `${outreachResult.outreach.email_variants.length} Tones & Cadence Ready`
+                      : briefResult
+                      ? "Ready for outreach generation"
+                      : "Requires Account Brief"}
+                  </div>
+                </div>
+              </div>
+              {briefResult && !outreachResult && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 hidden sm:inline-block">
+                  Next Step →
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* Command & Ingestion Card */}
         <div className="bg-[#0A0A0A] rounded-xl border border-neutral-800 p-6 mb-8 shadow-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-neutral-800/80">
@@ -353,41 +461,40 @@ export default function Home() {
                 Account Research & Grounded Outreach
               </h1>
               <p className="mt-1 text-sm text-neutral-400">
-                Generate verified account dossiers and personalized cold email sequences grounded in source facts.
+                A connected 2-step sales intelligence pipeline: research target companies, score ICP fit, and generate verified cold sequences.
               </p>
             </div>
 
             {/* Segmented Mode Switcher */}
-            <div className="flex items-center p-1 rounded-lg bg-neutral-900 border border-neutral-800 self-start sm:self-auto text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab("brief")}
-                className={`px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeTab === "brief"
-                    ? "bg-neutral-800 text-white shadow-sm"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                1. Account Dossier
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (briefResult) setActiveTab("outreach");
-                  else setError("Generate an Account Brief first to unlock Outreach Studio.");
-                }}
-                className={`px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === "outreach"
-                    ? "bg-neutral-800 text-white shadow-sm"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                2. Outreach Studio
-                {outreachResult && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                )}
-              </button>
-            </div>
+            {briefResult && (
+              <div className="flex items-center p-1 rounded-lg bg-neutral-900 border border-neutral-800 self-start sm:self-auto text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("brief")}
+                  className={`px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                    activeTab === "brief"
+                      ? "bg-neutral-800 text-white shadow-sm"
+                      : "text-neutral-400 hover:text-neutral-200"
+                  }`}
+                >
+                  1. Account Dossier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("outreach")}
+                  className={`px-3.5 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "outreach"
+                      ? "bg-neutral-800 text-white shadow-sm"
+                      : "text-neutral-400 hover:text-neutral-200"
+                  }`}
+                >
+                  2. Outreach Studio
+                  {outreachResult && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Form Input Row */}
@@ -454,12 +561,12 @@ export default function Home() {
                 {isLoadingBrief ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-black" />
-                    Generating Account Brief...
+                    Executing Step 1: Research & Qualify...
                   </>
                 ) : (
                   <>
                     <Zap className="w-3.5 h-3.5 text-black" />
-                    Run Research & Audit
+                    Run Step 1: Research & Qualify
                   </>
                 )}
               </button>
@@ -473,14 +580,14 @@ export default function Home() {
             <XCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
             <div className="text-xs">
               <span className="font-semibold block text-rose-300">
-                Pipeline Error
+                Pipeline Diagnostics
               </span>
               <p className="mt-0.5 text-rose-400/90">{error}</p>
             </div>
           </div>
         )}
 
-        {/* Pipeline Stepper Progress */}
+        {/* Pipeline Stepper Progress (Internal 4 Stages) */}
         {(isLoadingBrief || isLoadingOutreach) && (
           <div className="bg-[#0A0A0A] rounded-xl border border-neutral-800 p-6 mb-8 shadow-2xl">
             <div className="flex items-center justify-between mb-5 pb-3 border-b border-neutral-800/80">
@@ -488,8 +595,8 @@ export default function Home() {
                 <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
                 <span className="text-xs font-semibold text-white tracking-wide">
                   {isLoadingOutreach
-                    ? "Generating Personalized Outreach Cadence"
-                    : "Executing 4-Stage Research & Verification Pipeline"}
+                    ? "Step 2: Generating Grounded Outreach Sequence & Follow-ups"
+                    : "Step 1: Executing 4-Stage Research & Verification Pipeline"}
                 </span>
               </div>
               <span className="text-xs font-mono text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-full border border-neutral-800">
@@ -541,14 +648,10 @@ export default function Home() {
             </div>
             <div className="max-w-md mx-auto space-y-1.5">
               <h3 className="text-base font-semibold text-white">
-                No Account Brief Generated
+                Start Step 1: Research & Qualify
               </h3>
               <p className="text-xs text-neutral-400 leading-relaxed">
-                Enter a target company name or URL above and click{" "}
-                <span className="text-neutral-200 font-medium">
-                  "Run Research & Audit"
-                </span>{" "}
-                to generate a fact-checked brief and cold outreach sequence.
+                Enter a target company name or URL above to automatically generate a verified account brief, score ICP qualification, and unlock personalized cold outreach.
               </p>
             </div>
             <div className="pt-2">
@@ -601,24 +704,36 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* ICP Fit Badge */}
-                  {(() => {
-                    const fit = getFitBadge(
-                      briefResult.brief.icp_classification.fit_label,
-                      briefResult.brief.icp_classification.fit_score
-                    );
-                    return (
-                      <div
-                        className={`px-3 py-1.5 rounded-full border flex items-center gap-2 text-xs font-medium ${fit.badgeClass}`}
+                  {/* ICP Fit Badge + Quick Outreach Trigger */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                    {(() => {
+                      const fit = getFitBadge(
+                        briefResult.brief.icp_classification.fit_label,
+                        briefResult.brief.icp_classification.fit_score
+                      );
+                      return (
+                        <div
+                          className={`px-3 py-1.5 rounded-full border flex items-center gap-2 text-xs font-medium ${fit.badgeClass}`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${fit.dotClass}`}></span>
+                          <span>{fit.label}</span>
+                          {fit.scoreText && (
+                            <span className="text-neutral-400">({fit.scoreText})</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {activeTab === "brief" && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("outreach")}
+                        className="px-3 py-1.5 rounded-full bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 transition-all btn-tactile cursor-pointer"
                       >
-                        <span className={`w-2 h-2 rounded-full ${fit.dotClass}`}></span>
-                        <span>{fit.label}</span>
-                        {fit.scoreText && (
-                          <span className="text-neutral-400">({fit.scoreText})</span>
-                        )}
-                      </div>
-                    );
-                  })()}
+                        Compose Outreach →
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* ICP Rationale */}
@@ -765,23 +880,26 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* CTA Banner to Outreach Studio */}
-                  <div className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Prominent Funnel Transition CTA to Step 2 */}
+                  <div className="p-6 rounded-xl bg-gradient-to-r from-neutral-900 via-neutral-900 to-neutral-950 border border-neutral-700/80 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
-                      <h4 className="font-semibold text-sm text-white">
-                        Generate Personalized Cold Outreach
+                      <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-semibold uppercase tracking-wider mb-1">
+                        <CheckCircle2 className="w-4 h-4" /> Step 1 Complete • {Math.round(briefResult.overall_faithfulness_score * 100)}% Grounded
+                      </div>
+                      <h4 className="font-bold text-base text-white">
+                        Generate Personalized Outreach for {briefResult.brief.company_name}
                       </h4>
-                      <p className="text-xs text-neutral-400 mt-0.5">
-                        Compile 4 cold email variants and a multi-step follow-up cadence for this account.
+                      <p className="text-xs text-neutral-400 mt-1 max-w-xl">
+                        Automatically pass this verified dossier into Step 2 to produce 4 distinct email tone variants and an actionable follow-up cadence.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab("outreach")}
-                      className="px-4 py-2 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-semibold flex items-center gap-1.5 cursor-pointer shrink-0 transition-all btn-tactile"
+                      className="px-5 py-3 rounded-lg bg-white hover:bg-neutral-200 text-black text-xs font-bold flex items-center gap-2 cursor-pointer shrink-0 transition-all btn-tactile shadow-md"
                     >
-                      Open Outreach Studio
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      Continue to Outreach Flow
+                      <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -790,12 +908,74 @@ export default function Home() {
               {/* MODE 2: OUTREACH STUDIO */}
               {activeTab === "outreach" && (
                 <div className="space-y-6">
+                  {/* Connected Account Context Banner */}
+                  <div className="bg-[#0A0A0A] rounded-xl border border-neutral-800 p-5 shadow-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
+                      <div>
+                        <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-semibold block">
+                          Connected Account Context (Auto-Loaded)
+                        </span>
+                        <div className="text-sm font-bold text-white flex items-center gap-2 mt-0.5">
+                          <span>{briefResult.brief.company_name}</span>
+                          <span className="text-neutral-500 font-normal">•</span>
+                          <span className="text-xs font-mono text-neutral-300 font-normal">{briefResult.brief.industry}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDossierCheatSheet(!showDossierCheatSheet)}
+                          className="px-2.5 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs border border-neutral-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-neutral-400" />
+                          <span>{showDossierCheatSheet ? "Hide Cheat Sheet" : "Quick Cheat Sheet"}</span>
+                          <ChevronDown className={`w-3 h-3 transition-transform ${showDossierCheatSheet ? "rotate-180" : ""}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("brief")}
+                          className="px-2.5 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs border border-neutral-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Full Dossier ↗</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Collapsible Quick Cheat Sheet */}
+                    {showDossierCheatSheet && (
+                      <div className="mt-3 pt-3 border-t border-neutral-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 rounded-lg bg-neutral-900/50 border border-neutral-800">
+                          <span className="font-semibold text-neutral-300 block mb-1 text-[11px] uppercase tracking-wider">
+                            Key Pain Points:
+                          </span>
+                          <ul className="space-y-1 text-neutral-400 text-[11px]">
+                            {briefResult.brief.likely_pain_points.slice(0, 3).map((pp, i) => (
+                              <li key={i}>• {pp}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="p-3 rounded-lg bg-neutral-900/50 border border-neutral-800">
+                          <span className="font-semibold text-neutral-300 block mb-1 text-[11px] uppercase tracking-wider">
+                            Primary Talk Track:
+                          </span>
+                          <p className="text-neutral-400 text-[11px] italic">
+                            "{briefResult.brief.suggested_talk_tracks[0] || "N/A"}"
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Prospect Input Config */}
                   <div className="bg-[#0A0A0A] rounded-xl border border-neutral-800 p-6 shadow-2xl">
                     <div className="flex items-center justify-between pb-3 mb-4 border-b border-neutral-800">
                       <span className="text-xs font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-2">
                         <User className="w-4 h-4 text-neutral-400" />
-                        Target Contact Information
+                        Target Prospect & Contact Customization
+                      </span>
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        Optional Details
                       </span>
                     </div>
 
@@ -808,7 +988,7 @@ export default function Home() {
                           type="text"
                           value={contactName}
                           onChange={(e) => setContactName(e.target.value)}
-                          placeholder="e.g. Alex Chen"
+                          placeholder="e.g. Alex Chen (leave blank for general)"
                           className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-neutral-600"
                         />
                       </div>
@@ -834,7 +1014,7 @@ export default function Home() {
                         rows={2}
                         value={contactNotes}
                         onChange={(e) => setContactNotes(e.target.value)}
-                        placeholder="e.g. Expanding enterprise sales footprint..."
+                        placeholder="e.g. Scaling enterprise sales engineering and reducing rep ramp time..."
                         className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-800 text-white text-xs focus:outline-none focus:border-neutral-600"
                       />
                     </div>
@@ -848,12 +1028,12 @@ export default function Home() {
                       {isLoadingOutreach ? (
                         <>
                           <RefreshCw className="w-3.5 h-3.5 animate-spin text-black" />
-                          Compiling Outreach...
+                          Compiling Grounded Outreach...
                         </>
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5 text-black" />
-                          Generate Grounded Outreach Cadence
+                          Generate Grounded Cold Outreach & Cadence
                         </>
                       )}
                     </button>
@@ -1062,7 +1242,9 @@ export default function Home() {
                 {/* Claim List */}
                 <div className="mt-5">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mb-2.5 font-medium flex items-center justify-between">
-                    <span>Audit Log</span>
+                    <span>
+                      {activeTab === "outreach" ? "Outreach Audit Log" : "Brief Audit Log"}
+                    </span>
                     <span>Status</span>
                   </div>
                   <div className="max-h-64 overflow-y-auto space-y-2 pr-1">

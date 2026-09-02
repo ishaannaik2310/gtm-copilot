@@ -31,38 +31,75 @@ SYSTEM_PROMPT = (
 def _is_substantive_claim(sentence: str) -> bool:
     """Filter out non-factual boilerplate such as greetings, sign-offs, and standard CTAs."""
     s = sentence.strip()
-    if len(s) < 20:
+    if len(s) < 15:
         return False
+
     lower = s.lower()
-    # Greetings
-    if lower.startswith(("hi ", "hello ", "hey ", "dear ")):
+
+    # 1. Greetings & Salutations (e.g. "Hi Alex,", "Alex,", "Good morning,")
+    if re.match(r"^(?:hi|hello|hey|dear|good morning|good afternoon)\b", lower):
         return False
-    # Sign-offs
-    if lower.startswith(
-        ("best,", "best regards,", "thanks,", "thank you,", "sincerely,", "cheers,", "[sender", "[your")
+    if re.match(r"^[a-z]+,\s*$", lower):
+        return False
+
+    # 2. Sign-offs and Signatures
+    if re.match(
+        r"^(?:best|best regards|warm regards|warmly|thanks|thank you|sincerely|cheers|regards|respectfully)\b",
+        lower,
     ):
         return False
-    # Common conversational fillers and meeting request CTAs
-    if lower.startswith(
-        (
-            "i'll keep this brief",
-            "following up on my",
-            "just following up",
-            "hope you're having",
-            "let me know if you're open",
-            "would you be open to a quick",
-            "would you be open to a 5-minute",
-            "would you be open to a 10-minute",
-            "do you have 5 minutes",
-            "do you have 10 minutes",
-            "do you have time for",
-            "are you open to",
-            "worth a brief look",
-            "curious to see how this works",
-        )
+    if lower.startswith(("[sender", "[your", "[name", "[title", "[company")):
+        return False
+
+    # 3. Conversational fillers & meeting request CTAs
+    if re.match(
+        r"^(?:i'll keep this|just following up|following up on|hope you're having|hope this email finds|hope all is well)\b",
+        lower,
     ):
         return False
+
+    # 4. Scheduling & Call to Action questions / asks
+    if re.match(
+        r"^(?:is there a|would you be open|would you have|are you open|do you have|do you have time|worth a|could we|can we|how does|let me know|open to|curious if|curious to|if this resonates|if you're open|feel free to|looking forward to)\b",
+        lower,
+    ):
+        return False
+
+    # 5. Question check for scheduling / conversation hooks
+    if s.endswith("?"):
+        if re.search(
+            r"\b(?:tuesday|wednesday|thursday|friday|monday|next week|tomorrow|10-minute|15-minute|quick call|connect|chat|sync|discuss|demo|time to connect|open to|worth a)\b",
+            lower,
+        ):
+            return False
+
     return True
+
+
+def _clean_outreach_text(text: str) -> List[str]:
+    """Clean and split an outreach email or follow-up into substantive sentences, stripping boilerplate."""
+    if not text or not text.strip():
+        return []
+
+    # First, strip leading greetings like "Alex,\n\n", "Hi Alex,\n\n", "Dear Alex,\n\n", "Hey there,\n\n"
+    cleaned = re.sub(
+        r"^(?:(?:hi|hello|hey|dear)\s+[^,\n]+|(?:good\s+(?:morning|afternoon|evening))\s*|[A-Z][a-z]+)\s*[,:\n]+\s*",
+        "",
+        text.strip(),
+        flags=re.IGNORECASE,
+    )
+
+    # Split into paragraphs and sentences
+    raw_sentences: List[str] = []
+    paragraphs = [p.strip() for p in cleaned.split("\n") if p.strip()]
+    for p in paragraphs:
+        # Split on sentence terminals
+        parts = [s.strip() for s in re.split(r"(?<=[.!?])\s+", p) if s.strip()]
+        for part in parts:
+            if _is_substantive_claim(part):
+                raw_sentences.append(part)
+
+    return raw_sentences
 
 
 class FactCheckAgent(BaseAgent):
@@ -113,6 +150,9 @@ class FactCheckAgent(BaseAgent):
     def extract_outreach_claims(self, outreach: OutreachOutput) -> List[str]:
         """Extract substantive factual assertions from an OutreachOutput package, omitting email boilerplate.
 
+        Note: Personalization strategy notes describe prompt/customization logic rather than factual
+        assertions about the target company or product, and are intentionally not claim-checked.
+
         Args:
             outreach: The OutreachOutput to extract claims from.
 
@@ -123,34 +163,25 @@ class FactCheckAgent(BaseAgent):
 
         # 1. Email variants
         for v in outreach.email_variants:
-            if v.subject.strip():
-                claims.append(f"Email Subject ({v.tone_label}): {v.subject.strip()}")
             if v.body.strip():
-                sentences = [
-                    s.strip()
-                    for s in re.split(r"(?<=[.!?])\s+", v.body)
-                    if _is_substantive_claim(s)
-                ]
+                sentences = _clean_outreach_text(v.body)
                 claims.extend(sentences)
 
         # 2. Follow-up sequence
         for fu in outreach.follow_up_sequence:
-            if fu.subject.strip():
-                claims.append(f"Follow-up Touch #{fu.sequence_position} Subject: {fu.subject.strip()}")
             if fu.body.strip():
-                sentences = [
-                    s.strip()
-                    for s in re.split(r"(?<=[.!?])\s+", fu.body)
-                    if _is_substantive_claim(s)
-                ]
+                sentences = _clean_outreach_text(fu.body)
                 claims.extend(sentences)
 
-        # 3. Personalization notes
-        for note in outreach.personalization_notes:
-            if note.strip():
-                claims.append(f"Personalization Signal: {note.strip()}")
+        # Remove any duplicates while preserving order
+        seen = set()
+        unique_claims = []
+        for c in claims:
+            if c not in seen:
+                seen.add(c)
+                unique_claims.append(c)
 
-        return claims
+        return unique_claims
 
     def build_prompt(self, claims: List[str], source_contexts: List[str]) -> str:
         """Construct prompt auditing extracted claims against source context."""

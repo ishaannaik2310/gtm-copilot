@@ -196,14 +196,14 @@ def test_fact_check_extract_outreach_claims():
         email_variants=[
             EmailVariant(
                 subject="Accelerating Kubernetes monitoring",
-                body="Hi Alex, noticed CloudScale scaling its Kubernetes Monitor. We help engineering leaders streamline incident workflows.",
+                body="Alex,\n\nCloudScale Data provides automated Kubernetes observability for containerized environments.\n\nIs there a good time to connect next Tuesday?\n\nBest,\n[Sender Name]",
                 tone_label="direct",
             )
         ],
         follow_up_sequence=[
             FollowUpVariant(
                 subject="Re: Accelerating Kubernetes monitoring",
-                body="Following up on our incident management automation discussion.",
+                body="Alex,\n\nOur platform automates telemetry synthesis and incident triage in under 60 seconds.\n\nWorth a brief 10-minute chat?",
                 send_after_days=3,
                 sequence_position=1,
             )
@@ -215,9 +215,15 @@ def test_fact_check_extract_outreach_claims():
     agent = FactCheckAgent(llm_provider=MockLLMProvider("{}"))
     claims = agent.extract_outreach_claims(outreach)
 
-    assert len(claims) >= 3
-    assert any("Kubernetes monitoring" in c for c in claims)
-    assert any("Personalization Signal" in c for c in claims)
+    assert len(claims) == 2
+    assert any("Kubernetes observability" in c for c in claims)
+    assert any("telemetry synthesis" in c for c in claims)
+    # Ensure greetings, questions, sign-offs, and personalization notes are all excluded
+    assert not any(c.startswith("Alex,") for c in claims)
+    assert not any("connect next Tuesday" in c for c in claims)
+    assert not any("Worth a brief" in c for c in claims)
+    assert not any("Personalization Signal" in c for c in claims)
+    assert not any("Sender Name" in c for c in claims)
 
 
 @pytest.mark.asyncio
