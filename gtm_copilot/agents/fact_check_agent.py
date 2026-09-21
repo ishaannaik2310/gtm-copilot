@@ -1,6 +1,7 @@
 """Fact-Check Agent for auditing and verifying Account Brief and Outreach claims against source evidence."""
 
 from typing import Any, Dict, List, Optional
+import asyncio
 import logging
 import re
 
@@ -303,17 +304,21 @@ Return ONLY valid JSON matching this schema:
     async def _audit_claims(
         self, claims: List[str], source_context: List[str]
     ) -> List[FactCheckResult]:
-        """Execute claim auditing in batches of up to 10 claims to prevent token truncation."""
+        """Execute claim auditing concurrently in batches of up to 10 claims to minimize latency."""
         if not claims:
             return []
 
         BATCH_SIZE = 10
-        all_results: List[FactCheckResult] = []
+        batches = [claims[i : i + BATCH_SIZE] for i in range(0, len(claims), BATCH_SIZE)]
 
-        for i in range(0, len(claims), BATCH_SIZE):
-            batch = claims[i : i + BATCH_SIZE]
-            batch_results = await self._audit_batch(batch, source_context)
-            all_results.extend(batch_results)
+        # Audit batches concurrently across the event loop
+        batch_results_list = await asyncio.gather(
+            *[self._audit_batch(batch, source_context) for batch in batches]
+        )
+
+        all_results: List[FactCheckResult] = []
+        for batch_res in batch_results_list:
+            all_results.extend(batch_res)
 
         return all_results
 

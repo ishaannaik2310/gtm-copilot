@@ -1,6 +1,7 @@
 """Cross-Encoder reranker module for post-retrieval relevance scoring."""
 
 import logging
+import os
 from typing import Any, List, Optional
 
 from gtm_copilot.config import DEFAULT_RERANK_TOP_K, DEFAULT_RERANKER_MODEL
@@ -57,11 +58,20 @@ class Reranker:
         if not query.strip():
             return chunks[:top_k]
 
-        model = self._get_model()
-        pairs = [[query, chunk.text] for chunk in chunks]
+        # In production or cloud environments where CrossEncoder weight downloads
+        # (80MB+) introduce excessive latency and memory pressure, allow fast bypass
+        if self._model is None and os.getenv("ENABLE_CROSS_ENCODER", "false").lower() not in ("true", "1", "yes"):
+            return chunks[:top_k]
 
-        # Compute cross-encoder relevance logits
-        raw_scores = model.predict(pairs)
+        try:
+            model = self._get_model()
+            pairs = [[query, chunk.text] for chunk in chunks]
+
+            # Compute cross-encoder relevance logits
+            raw_scores = model.predict(pairs)
+        except Exception as e:
+            logger.warning("CrossEncoder reranking failed or skipped (%s); falling back to hybrid order.", e)
+            return chunks[:top_k]
 
         # Handle single chunk score output format
         if hasattr(raw_scores, "tolist"):

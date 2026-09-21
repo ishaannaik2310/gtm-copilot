@@ -81,7 +81,8 @@ class GeminiProvider(LLMProvider):
             "x-goog-api-key": resolved_key,
         }
 
-        url = f"{self.base_url}/models/{self.model}:generateContent?key={resolved_key}"
+        current_model = self.model
+        url = f"{self.base_url}/models/{current_model}:generateContent?key={resolved_key}"
 
         max_attempts = 3
         response = None
@@ -102,9 +103,15 @@ class GeminiProvider(LLMProvider):
                 logger.error("Gemini API 429 Quota Exceeded: %s (%s)", err_msg, response.text)
                 raise RuntimeError(f"Gemini API request failed (429): {err_msg}")
 
-            # On 503 (UNAVAILABLE / high demand) and transient 5xx errors: retry with backoff
+            # On 503 (UNAVAILABLE / high demand) and transient 5xx errors: retry with failover
             if response.status_code in (500, 502, 503) and attempt < max_attempts:
-                retry_delay = 2.0 * (2 ** (attempt - 1))
+                # Fail over to gemini-3.6-flash if 3.5-flash experiences capacity spikes
+                if current_model == "gemini-3.5-flash":
+                    current_model = "gemini-3.6-flash"
+                    url = f"{self.base_url}/models/{current_model}:generateContent?key={resolved_key}"
+                    logger.info("Failing over to %s due to HTTP %d", current_model, response.status_code)
+
+                retry_delay = 1.0 * attempt
                 logger.warning(
                     "Gemini API transient server error (%d). Retrying in %.1fs (attempt %d/%d)...",
                     response.status_code,

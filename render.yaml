@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: gtm-copilot-api
     runtime: python
@@ -10,6 +10,6 @@
       - key: GEMINI_API_KEY
         sync: false
       - key: DEFAULT_GEMINI_MODEL
-        value: gemini-3.5-flash
+        value: gemini-flash-lite-latest
       - key: ALLOWED_ORIGINS
         sync: false
