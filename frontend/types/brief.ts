@@ -10,7 +10,7 @@ export interface ICPClassification {
 
 export interface AccountBrief {
   company_name: string;
-  industry: string;
+  industry: string | null;
   icp_classification: ICPClassification;
   executive_summary: string;
   key_products_or_services: string[];

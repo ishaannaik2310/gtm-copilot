@@ -2,49 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Forensic Noir — Design System Tokens
+   ============================================================ */
 :root {
   color-scheme: dark;
+
+  /* Core Surface Palette — warm zinc, not cool neutral */
+  --bg-void:          #09090B;
+  --bg-surface:       #18181B;
+  --bg-elevated:      #27272A;
+  --border-subtle:    #3F3F46;
+  --border-focus:     #71717A;
+
+  /* Text Hierarchy */
+  --text-primary:     #FAFAFA;
+  --text-secondary:   #A1A1AA;
+  --text-tertiary:    #71717A;
+
+  /* Accent: Amber = "Evidence / Proof" */
+  --accent-proof:         #F59E0B;
+  --accent-proof-muted:   #D97706;
+  --accent-proof-subtle:  rgba(245, 158, 11, 0.12);
+  --accent-proof-bg:      #78350F;
+
+  /* Status */
+  --status-verified:  #34D399;
+  --status-inferred:  #A1A1AA;
+  --status-flagged:   #FB7185;
+
+  /* Spacing rhythm */
+  --space-section: 2rem;
+  --space-card:    1.5rem;
+  --space-tight:   0.75rem;
 }
 
 body {
-  color: #EDEDED;
-  background-color: #000000;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   min-height: 100dvh;
 }
 
-/* Vercel Grid & Ambient Glow */
-.bg-vercel-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+/* ============================================================
+   Subtle Noise Texture (inline SVG, no external file)
+   ============================================================ */
+.bg-noise {
+  position: relative;
+}
+.bg-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
 }
 
-.bg-vercel-radial {
-  background: radial-gradient(circle 800px at 50% -100px, rgba(255, 255, 255, 0.05), transparent);
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Custom Minimalist Dark Scrollbar */
+@keyframes pulse-amber {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out both;
+}
+
+.animate-pulse-amber {
+  animation: pulse-amber 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   The Amber Evidence Rail — signature element
+   ============================================================ */
+.evidence-rail {
+  border-left: 2px solid var(--accent-proof);
+}
+
+.claim-active {
+  background-color: var(--accent-proof-subtle);
+  border-left: 2px solid var(--accent-proof);
+}
+
+/* ============================================================
+   Scrollbar — warm zinc
+   ============================================================ */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: var(--bg-void);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: var(--border-subtle);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: var(--border-focus);
 }
 
-/* Tactile Active Button Push */
+/* ============================================================
+   Utility
+   ============================================================ */
 .btn-tactile:active {
   transform: scale(0.98);
+}
+
+/* Serif body text for editorial sections */
+.prose-editorial {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  line-height: 1.75;
 }
