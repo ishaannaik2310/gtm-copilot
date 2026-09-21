@@ -112,13 +112,25 @@ def create_app() -> FastAPI:
     )
 
     # CORS — read allowed origins from ALLOWED_ORIGINS env var (comma-separated).
-    # Defaults to localhost:3000 for local development. MUST be set explicitly in production.
+    # Normalizes origins by stripping quotes, whitespace, and trailing slashes.
     _raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000")
-    allowed_origins: List[str] = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    parsed_origins: List[str] = [
+        o.strip().strip("'\"").rstrip("/") for o in _raw_origins.split(",") if o.strip()
+    ]
+    # Always include standard local development hosts
+    for local_origin in ["http://localhost:3000", "http://127.0.0.1:3000"]:
+        if local_origin not in parsed_origins:
+            parsed_origins.append(local_origin)
+
+    # Permit all Vercel deployment domains (production and preview branches) via regex
+    allow_origin_regex = r"^https://.*\.vercel\.app$"
+
+    logger.info("Configured CORS allowed_origins: %s, regex: %s", parsed_origins, allow_origin_regex)
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        allow_origins=parsed_origins,
+        allow_origin_regex=allow_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

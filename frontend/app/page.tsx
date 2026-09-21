@@ -40,8 +40,67 @@ import type {
   ICPFitLabel,
 } from "../types/brief";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+function sanitizeApiBaseUrl(rawUrl?: string): string {
+  if (!rawUrl || !rawUrl.trim()) {
+    return "http://127.0.0.1:8000";
+  }
+  let cleaned = rawUrl.trim();
+  if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+    cleaned = `https://${cleaned}`;
+  }
+  return cleaned.replace(/\/+$/, "");
+}
+
+const API_BASE_URL = sanitizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+
+// 120 seconds timeout to accommodate Render's cold-start spin-up (30-60s) + multi-agent LLM execution
+const FETCH_TIMEOUT_MS = 120_000;
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function formatApiErrorMessage(err: any, endpoint: string): string {
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const isTargetHttp = API_BASE_URL.startsWith("http://");
+
+  // 1. Timeout / Abort error
+  if (err.name === "AbortError" || err.message?.includes("aborted")) {
+    return `Request to ${endpoint} timed out after 120s. Render's free tier spins down on inactivity and takes ~30–60s to wake up on the first request. Please wait 15 seconds and retry.`;
+  }
+
+  // 2. Mixed Content Security Block
+  if (isHttps && isTargetHttp) {
+    return `Security Block (Mixed Content): This site is served over HTTPS, but NEXT_PUBLIC_API_URL is configured as HTTP (${API_BASE_URL}). Browsers block requests from HTTPS to HTTP. Please update NEXT_PUBLIC_API_URL on Vercel to use 'https://'.`;
+  }
+
+  // 3. Network error / CORS failure
+  if (
+    err.message?.includes("Failed to fetch") ||
+    err.message?.includes("NetworkError") ||
+    err.message?.includes("Load failed")
+  ) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "your frontend";
+    return `Cannot connect to backend (${API_BASE_URL}${endpoint}).\n\nDiagnostic Checklist:\n• CORS: Ensure Render's ALLOWED_ORIGINS contains '${origin}' (or starts with https://... without trailing slash).\n• Cold Sleep: Render free instances sleep after 15 min. Visit ${API_BASE_URL}/api/health directly in a new browser tab to wake it up, then retry here.\n• Configuration: Verify NEXT_PUBLIC_API_URL on Vercel matches your Render web service URL.`;
+  }
+
+  return err.message || `An unexpected error occurred while calling ${endpoint}.`;
+}
 
 interface StageInfo {
   step: string;
@@ -162,7 +221,7 @@ export default function Home() {
     setActiveTab("brief");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/brief`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/brief`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,17 +244,8 @@ export default function Home() {
         setSelectedClaim(data.fact_checks[0]);
       }
     } catch (err: any) {
-      console.error("API error:", err);
-      if (
-        err.message?.includes("Failed to fetch") ||
-        err.message?.includes("NetworkError")
-      ) {
-        setError(
-          `Cannot reach backend server at ${API_BASE_URL}. Ensure FastAPI is running via 'python run_dev.py'.`
-        );
-      } else {
-        setError(err.message || "Failed to generate account brief.");
-      }
+      console.error("API error (/api/brief):", err);
+      setError(formatApiErrorMessage(err, "/api/brief"));
     } finally {
       setIsLoadingBrief(false);
     }
@@ -212,7 +262,7 @@ export default function Home() {
     setIsLoadingOutreach(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/outreach`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/outreach`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -238,8 +288,8 @@ export default function Home() {
         setSelectedClaim(data.fact_checks[0]);
       }
     } catch (err: any) {
-      console.error("Outreach API error:", err);
-      setError(err.message || "Failed to generate personalized outreach.");
+      console.error("Outreach API error (/api/outreach):", err);
+      setError(formatApiErrorMessage(err, "/api/outreach"));
     } finally {
       setIsLoadingOutreach(false);
     }
@@ -582,7 +632,9 @@ export default function Home() {
               <span className="font-semibold block text-rose-300">
                 Pipeline Diagnostics
               </span>
-              <p className="mt-0.5 text-rose-400/90">{error}</p>
+              <p className="mt-1 text-rose-300/90 whitespace-pre-line font-mono text-[11px] leading-relaxed">
+                {error}
+              </p>
             </div>
           </div>
         )}
