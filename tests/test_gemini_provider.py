@@ -86,3 +86,58 @@ async def test_gemini_provider_empty_candidates():
     provider = GeminiProvider(api_key="valid-key", client=mock_client)
     with pytest.raises(ValueError, match="No candidates returned"):
         await provider.complete(prompt="hello")
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_strips_newlines_and_whitespace():
+    captured_url = ""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_url
+        captured_url = str(request.url)
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+        )
+
+    mock_transport = httpx.MockTransport(handle_request)
+    mock_client = httpx.AsyncClient(transport=mock_transport)
+
+    # Pass api_key and model with leading/trailing newlines and spaces
+    provider = GeminiProvider(
+        api_key="  test-key-with-newline\n\r  ",
+        model="  gemini-flash-lite-latest\n  ",
+        client=mock_client,
+    )
+
+    result = await provider.complete(prompt="test")
+    assert result == "ok"
+    assert "\n" not in captured_url
+    assert "\r" not in captured_url
+    assert "key=test-key-with-newline" in captured_url
+    assert "/models/gemini-flash-lite-latest:generateContent" in captured_url
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_env_with_trailing_newlines(monkeypatch):
+    captured_url = ""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_url
+        captured_url = str(request.url)
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+        )
+
+    mock_transport = httpx.MockTransport(handle_request)
+    mock_client = httpx.AsyncClient(transport=mock_transport)
+
+    monkeypatch.setenv("GEMINI_API_KEY", "env-key-with-newline\n")
+    provider = GeminiProvider(client=mock_client)
+
+    result = await provider.complete(prompt="test")
+    assert result == "ok"
+    assert "\n" not in captured_url
+    assert "key=env-key-with-newline" in captured_url
+

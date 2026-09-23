@@ -24,9 +24,11 @@ def get_default_llm_provider(
     Returns:
         Configured GeminiProvider instance.
     """
+    resolved_api_key = (api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")).strip()
+    resolved_model = (model or DEFAULT_GEMINI_MODEL).strip()
     return GeminiProvider(
-        api_key=api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", ""),
-        model=model or DEFAULT_GEMINI_MODEL,
+        api_key=resolved_api_key,
+        model=resolved_model,
         **kwargs,
     )
 
