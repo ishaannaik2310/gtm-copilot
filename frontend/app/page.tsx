@@ -120,12 +120,10 @@ export default function Home() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Outreach inputs
-  const [contactName, setContactName] = useState("Alex Chen");
-  const [contactRole, setContactRole] = useState("VP of Sales");
-  const [contactNotes, setContactNotes] = useState(
-    "Focused on expanding Notion's enterprise sales footprint and sales engineering enablement."
-  );
+  // Outreach inputs (empty by default; placeholder shown until typed)
+  const [contactName, setContactName] = useState("");
+  const [contactRole, setContactRole] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
   const [isLoadingOutreach, setIsLoadingOutreach] = useState(false);
   const [selectedEmailToneIndex, setSelectedEmailToneIndex] = useState(0);
   const [showDossierCheatSheet, setShowDossierCheatSheet] = useState(false);
@@ -208,6 +206,11 @@ export default function Home() {
     setError(null);
     setBriefResult(null);
     setOutreachResult(null);
+    setContactName("");
+    setContactRole("");
+    setContactNotes("");
+    setSelectedEmailToneIndex(0);
+    setShowDossierCheatSheet(false);
     setSelectedClaim(null);
     setIsLoadingBrief(true);
     setActiveTab("brief");
@@ -227,6 +230,13 @@ export default function Home() {
       }
       const data: FactCheckedBrief = await response.json();
       setBriefResult(data);
+      // Explicitly reset all outreach state so the newly researched company starts completely fresh
+      setOutreachResult(null);
+      setContactName("");
+      setContactRole("");
+      setContactNotes("");
+      setSelectedEmailToneIndex(0);
+      setShowDossierCheatSheet(false);
       if (data.fact_checks.length > 0) setSelectedClaim(data.fact_checks[0]);
     } catch (err: any) {
       console.error("API error (/api/brief):", err);
