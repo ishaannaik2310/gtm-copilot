@@ -1,168 +1,175 @@
-﻿# GTM Ops Copilot
+# GTM Ops Copilot
 
-> An AI sales intelligence pipeline that doesn't just generate answers — it proves them.
+### AI that shows its work.
 
-Give it a company name or URL. It researches the company, scores it against your ICP, drafts a fact-checked account brief, and generates personalized outreach — with every claim traceable to a source and audited for whether it's actually true.
+Type a company. Get a sales brief and cold outreach. Every sentence audited against a source. Every weak claim flagged.
 
-[**Live Demo →**](#) · [**Video Walkthrough →**](#)
-
----
-
-## The Problem
-
-Any LLM can write a plausible-sounding sales email or account summary. That's not the interesting problem anymore.
-
-**The hard problem is: how do you know if any of it is true?**
-
-Ungrounded LLM output for sales teams is a liability, not a tool — a hallucinated funding number or a fabricated pain point can embarrass a rep on a real call. Most "AI for sales" demos never address this at all.
-
-This project is built around a different question: instead of just generating sales content, **can the system verify its own output, claim by claim, against real source evidence — and be honest when it can't?**
+[Try the live demo →](https://gtm-copilot-nine.vercel.app) · [Watch the 90-second walkthrough →](YOUR_VIDEO_URL)
 
 ---
 
-## What It Does
+## Here's the problem
 
-A two-stage connected funnel:
+Any AI can write a sales email. That's not impressive anymore. Everyone has that.
 
-**1. Research & Qualify**
+The problem is you can't trust it.
 
-Given a company name or URL, a 4-agent pipeline:
-- Researches the company via live web scraping and internal playbook grounding (hybrid retrieval)
-- Scores it against your Ideal Customer Profile with an explained rationale
-- Synthesizes a full account brief — pain points, talk tracks, objection handling
-- Fact-checks every claim against source evidence before it's shown to you
+A made-up funding number. A pain point the company doesn't have. A "fact" the model invented because it sounded right. One of those in front of a real buyer and your rep looks like an idiot.
 
-**2. Grounded Outreach**
+Most AI sales tools ignore this. They generate, you hope.
 
-One click carries the verified brief forward — no re-entering data — into:
-- 4 tonally distinct cold email variants
-- A multi-touch follow-up cadence personalized to a specific contact
-- Independent fact-checking of every outreach claim against the same source evidence
-
-Every claim in every output is auditable in an interactive **Grounding Inspector** — see exactly which source text supports each sentence, and whether it's a direct quote, a reasoned inference, or (rarely, and always disclosed) unsupported.
+This one doesn't ask for your trust. It earns it.
 
 ---
 
-## Architecture
+## What you get
+
+Two steps. One connected flow.
+
+1. **Research & Qualify.** Give it a company name and URL. Four agents research the company, score it against your Ideal Customer Profile, and write the account brief: pain points, talk tracks, objection handling.
+2. **Grounded Outreach.** One click carries the brief forward. Four email tones and a follow-up cadence, personalized to your contact. No re-typing.
+
+Then the part nobody else does.
+
+Every claim gets audited. Click any sentence and see the exact source text behind it. Each claim is labeled one of three ways:
+
+| Label | Meaning |
+|---|---|
+| **Direct quote** | It's literally in the source. |
+| **Reasonable inference** | Not stated, but it follows from cited facts. |
+| **Unsupported** | No basis in the source. Flagged. |
+
+No black box. You see what's true, what's inferred, and what isn't.
+
+---
+
+## Proof it works
+
+Claims are cheap. Here's what the system actually caught while I built it:
+
+- **It caught its own hallucination.** The research agent extracted the company name *"Notion Labs, Inc."* It looked precise and correct. The fact-checker proved that string wasn't in the scraped page. The model pulled it from memory. A generator can't catch that. A separate auditor can.
+- **It exposed a bug I'd never have found by reading output.** First run: 43.8% faithfulness. The fact-checker was flagging real product names as unsupported. The cause wasn't the AI. I was silently truncating the evidence to 400 characters before the auditor saw it. Fixed the pipeline, changed zero prompts, same brief hit 100%.
+- **It caught an email exaggerating a real number.** Source said reps lose 45 minutes per account. The email said "hours of manual research." The auditor flagged it as unsupported. A human proofreader would have missed it.
+
+### It refuses to rubber-stamp
+
+| Company | ICP verdict |
+|---|---|
+| **GitHub** | Poor fit (30%): too large, too mature for the target profile |
+| **Notion** | Out of ICP (35%): late-stage market leader |
+
+Ask it about a famous company and it won't flatter you. It tells you the account doesn't match, and why.
+
+---
+
+## The numbers
+
+| Metric | Measurement |
+|---|---|
+| **Agents in the pipeline** | 4 (Research, ICP Classifier, Synthesis, Fact-Check) + Outreach |
+| **Retrieval** | Hybrid: BM25 + vector search, fused with RRF, cross-encoder reranked |
+| **Fact-check labels** | 3-way (direct, inference, unsupported) |
+| **Faithfulness, first run** | 43.8% (a real bug) |
+| **Faithfulness, after the fix** | 100% on the same brief |
+| **Outreach audit (live run)** | 94.7% across 19 substantive claims, 1 correctly flagged |
+| **Automated tests** | 80, every LLM call mocked, zero API cost to run |
+| **CI** | GitHub Actions on Python 3.10, 3.11, 3.12 |
+| **Secrets ever committed** | 0, verified across full git history |
+
+---
+
+## How it works
 
 ```
-Company Input
+Company name + URL
       │
       ▼
-┌─────────────────┐    ┌──────────────────┐
-│  Research Agent │───▶│  ICP Classifier  │
-│  (live scrape + │    │  (scored against │
-│  hybrid RAG)    │    │  playbook rules) │
-└─────────────────┘    └──────────────────┘
+Research Agent ---> scrapes the site, pulls playbook context
       │
       ▼
-┌──────────────────┐
-│  Synthesis Agent │
-│  (account brief) │
-└──────────────────┘
+ICP Classifier ---> scores fit against your playbook, explains why
       │
       ▼
-┌──────────────────┐
-│  Fact-Check Agent│──▶  Faithfulness score
-│  (3-way audit)   │     + flagged claims
-└──────────────────┘
-      │
-      ▼  (user selects a contact)
+Synthesis Agent --> writes the account brief
       │
       ▼
-┌──────────────────┐
-│  Outreach Agent  │───▶  Fact-Check Agent
-│  (grounded email)│      (same 3-way audit)
-└──────────────────┘
+Fact-Check Agent -> audits every claim, scores faithfulness
+      │
+      ▼ (you add a contact)
+Outreach Agent ---> 4 tones + follow-up cadence
+      │
+      ▼
+Fact-Check Agent -> audits the emails against the same evidence
 ```
 
-### Retrieval: Hybrid Search
+**Failure is honest.** If a stage breaks, the system says so. If classification fails, the fit label reads "unknown," not a guessed score. If synthesis fails, the pipeline stops. It never fills a gap with a plausible fake.
 
-Dense vector search (ChromaDB) + BM25 keyword search, fused via **Reciprocal Rank Fusion**, then re-ranked with a cross-encoder. Pure embedding similarity misses exact-term matches — product names, specific figures — that keyword search catches. RRF fusion + reranking consistently outperforms either method alone on retrieval-quality benchmarks.
-
-### Fact-Checking: 3-Way Classification, Not Binary Pass/Fail
-
-| Status | Meaning |
-|---|---|
-| `directly_supported` | Explicitly stated in source text |
-| `reasonable_inference` | Not a direct quote, but a logical deduction from specific cited facts |
-| `unsupported` | No basis in source material — the real hallucination signal |
-
-This distinction exists because an earlier binary version conflated "not a literal quote" with "fabricated," which incorrectly flagged reasonable synthesis (e.g., inferring enterprise-sales complexity from evidence that a company is scaling upmarket) as if it were a hallucination.
+**Retrieval is hybrid on purpose.** Vector search misses exact terms like product names and figures. Keyword search misses meaning. Fuse both with Reciprocal Rank Fusion, then rerank with a cross-encoder. Better than either alone.
 
 ---
 
-## Why This Is Harder Than It Looks
+## Who this is for
 
-The naive version is: "prompt an LLM to write a sales brief." That took an afternoon. The actual engineering work was making the output **trustworthy** — and testing revealed that trustworthiness is not a solved problem you get for free.
-
-**Three real examples from development:**
-
-### 1. A hallucinated legal entity name slipped past extraction — until fact-checking caught it
-The Research Agent confidently extracted *"Notion Labs, Inc."* Fact-checking proved this specific string never appeared in the scraped source text — a subtle hallucination that looked like a great, precise extraction. This is exactly why verification exists as a separate, **adversarial** step rather than trusting the generator's own confidence.
-
-### 2. A silent data-truncation bug was manufacturing false hallucination flags
-Early runs showed a **43.8% faithfulness score** — the fact-checker was flagging real, correct facts as "unsupported." Root cause: the traceability data being fed to the fact-checker was silently truncated to 400 characters, while the generator had seen the full page. Fixing this took the same brief from **43.8% → 100% faithfulness with zero prompt changes** — the bug was in the pipeline, not the model.
-
-### 3. A category-confusion bug had the system inventing pain points that weren't about the target company
-The Synthesis Agent was pulling from the wrong section of the internal playbook — presenting "objections a buyer might raise about our tool" as if they were "pain points the target company experiences." Both were present in the source text, so the claims passed fact-checking as "supported." A good reminder that **faithfulness-to-source and conceptual-correctness are different properties**, and a system needs both.
+- Sales reps who need to trust what they send.
+- RevOps teams who want AI output they can audit.
+- Anyone who's been burned by a confident, wrong AI answer.
 
 ---
 
-## Tech Stack
+## What this is not
 
-| Layer | Stack |
-|---|---|
-| **Backend** | Python, FastAPI |
-| **Retrieval** | ChromaDB (dense vector), BM25 (keyword), RRF fusion, sentence-transformers (cross-encoder reranking) |
-| **LLM** | Gemini API |
-| **Frontend** | Next.js 14, TypeScript, Tailwind CSS |
-| **Testing / CI** | pytest (80+ tests, all LLM calls mocked), GitHub Actions across Python 3.10–3.12 |
+Not a CRM. Not a replacement for your judgment. Not a finished commercial product with paying customers. It's a working system built to prove one idea: **AI output should come with receipts.**
 
 ---
 
-## Known Limitations
+## Tech stack
 
-Being upfront about what this system doesn't yet do well is part of the design, not an afterthought.
-
-**Fact-checking validates fact presence, not logical soundness of inferences.** A `reasonable_inference` claim can pass if it cites real source facts, even if the logical connection between those facts and the conclusion is weak. Judging reasoning quality — not just fact presence — is a substantially harder problem and a known open challenge in LLM-as-judge evaluation.
-
-**Web extraction doesn't render JavaScript.** Sites that are heavily client-rendered will return sparse or empty content. The system degrades gracefully — reporting partial results with explicit errors — rather than failing silently or hallucinating to fill the gap.
-
-**Free-tier API rate limits constrain live usage.** The pipeline makes 4–5 sequential LLM calls per request. The current provider's free tier limits this to a small number of full runs per day. Production use would need a paid tier or response caching.
+- **Backend:** Python, FastAPI, ChromaDB, BM25, sentence-transformers, Gemini API
+- **Frontend:** Next.js, TypeScript, Tailwind CSS
+- **Deploy:** Render (API) + Vercel (frontend)
+- **Quality:** pytest, GitHub Actions
 
 ---
 
-## Running Locally
+## Honest limits
+
+Better you hear it from me.
+
+- **The auditor checks facts, not logic.** A "reasonable inference" can pass because it cites real facts, even when the leap between them is weak. Judging reasoning quality is a hard, open problem in LLM evaluation. It's documented, not hidden.
+- **No JavaScript rendering.** Heavily client-rendered sites return thin content. The system reports partial results and says so. It doesn't invent the rest.
+- **Free-tier limits.** Each run makes several sequential LLM calls, and the free Gemini quota allows only a handful of full runs per day. The free Render instance also sleeps when idle, so the first request can take 30-60 seconds to wake up.
+- **Scores vary run to run.** LLM output isn't deterministic. The numbers above are real measurements, not guarantees.
+
+---
+
+## Run it yourself
 
 ```bash
 # Backend
 pip install -e .
-cp .env.example .env          # add your GEMINI_API_KEY
-python run_dev.py             # API on http://localhost:8000
+cp .env.example .env # add GEMINI_API_KEY (free: aistudio.google.com/apikey)
+python run_dev.py
 
-# Frontend (separate terminal)
+# Frontend (new terminal)
 cd frontend
 npm install
-npm run dev                   # UI on http://localhost:3000
+npm run dev
 ```
 
-Get a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
-
-### Testing
+Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
-pytest tests/ -v              # 80+ tests, fully mocked — no API calls, no cost
+pytest tests/ -v # 80 tests, fully mocked, costs nothing
 ```
 
 ---
 
-## Background
+## The point
 
-Built as a from-scratch exploration of RAG evaluation and multi-agent orchestration. The goal was to deeply understand retrieval, grounding, and verification — not to compete with production tools like RAGAS or DeepEval — and to find out what it actually takes to ship an LLM system where you'd trust the output on a live sales call.
+Making AI generate content is easy. Making it prove that content is true is the work.
+
+That's what this is.
 
 ---
 
-<div align="center">
-  <sub>Made with rigour, not vibes.</sub>
-</div>
+Built by Ishaan Naik. [GitHub](https://github.com/ishaannaik2310) · [LinkedIn](YOUR_LINKEDIN_URL)
