@@ -3,12 +3,13 @@
 import asyncio
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
 
 from gtm_copilot.config import DEFAULT_GEMINI_MODEL, GEMINI_API_KEY
-from gtm_copilot.llm.base import LLMProvider
+from gtm_copilot.llm.base import LLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class GeminiProvider(LLMProvider):
 
         max_attempts = 3
         response = None
+        t_start = time.perf_counter()
 
         for attempt in range(1, max_attempts + 1):
             if self._client is not None:
@@ -128,11 +130,26 @@ class GeminiProvider(LLMProvider):
             logger.error("Gemini API error %d: %s", response.status_code, response.text)
             raise RuntimeError(f"Gemini API request failed ({response.status_code}): {response.text}")
 
+        latency = time.perf_counter() - t_start
         data = response.json()
         try:
             candidates = data.get("candidates", [])
             if not candidates:
                 raise ValueError(f"No candidates returned by Gemini API: {data}")
-            return candidates[0]["content"]["parts"][0]["text"]
+            text = candidates[0]["content"]["parts"][0]["text"]
+
+            # Extract token usage from Gemini usageMetadata (top-level field)
+            usage = data.get("usageMetadata", {})
+            prompt_tokens: Optional[int] = usage.get("promptTokenCount")
+            completion_tokens: Optional[int] = usage.get("candidatesTokenCount")
+            total_tokens: Optional[int] = usage.get("totalTokenCount")
+
+            return LLMResponse(
+                text,
+                latency_seconds=latency,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            )
         except (KeyError, IndexError) as e:
             raise ValueError(f"Unexpected response format from Gemini API: {data}") from e

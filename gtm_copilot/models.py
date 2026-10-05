@@ -6,6 +6,39 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
+class AgentCallMetrics(BaseModel):
+    """Observability metrics for a single LLM call made by an agent."""
+
+    agent_name: str = Field(..., description="Name of the agent that made the call.")
+    latency_seconds: float = Field(..., description="Wall-clock time in seconds for the LLM API call.")
+    prompt_tokens: Optional[int] = Field(default=None, description="Number of prompt/input tokens consumed.")
+    completion_tokens: Optional[int] = Field(default=None, description="Number of completion/output tokens generated.")
+    total_tokens: Optional[int] = Field(default=None, description="Total tokens consumed (prompt + completion).")
+    estimated_cost_usd: Optional[float] = Field(default=None, description="Estimated USD cost for this call.")
+    model: Optional[str] = Field(default=None, description="Model identifier used for this call.")
+
+
+class PipelineMetrics(BaseModel):
+    """Aggregated observability metrics for an entire pipeline run."""
+
+    agent_calls: List[AgentCallMetrics] = Field(
+        default_factory=list,
+        description="Per-call metrics for each LLM call in the pipeline.",
+    )
+    total_latency_seconds: float = Field(
+        default=0.0,
+        description="Sum of all individual LLM call latencies (does not include non-LLM work).",
+    )
+    total_prompt_tokens: int = Field(default=0, description="Total prompt tokens across all calls.")
+    total_completion_tokens: int = Field(default=0, description="Total completion tokens across all calls.")
+    total_tokens: int = Field(default=0, description="Total tokens across all calls.")
+    total_estimated_cost_usd: Optional[float] = Field(
+        default=None,
+        description="Total estimated USD cost across all calls (None if any call lacks pricing data).",
+    )
+    call_count: int = Field(default=0, description="Total number of LLM API calls made.")
+
+
 class Document(BaseModel):
     """Raw document ingested from file, web, or account data source."""
 
@@ -222,6 +255,11 @@ class FactCheckedBrief(BaseModel):
         default_factory=list,
         description="List of claims that failed fact-checking (unsupported or hallucinated).",
     )
+    metrics: Optional[PipelineMetrics] = Field(
+        default=None,
+        description="Pipeline performance observability metrics (latency, tokens, cost).",
+    )
+
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +358,10 @@ class FactCheckedOutreach(BaseModel):
     flagged_claims: List[str] = Field(
         default_factory=list,
         description="List of claims in the outreach that failed fact-checking (unsupported/hallucinated).",
+    )
+    metrics: Optional[PipelineMetrics] = Field(
+        default=None,
+        description="Pipeline performance observability metrics (latency, tokens, cost).",
     )
 
 

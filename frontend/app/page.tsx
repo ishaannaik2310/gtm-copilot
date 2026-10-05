@@ -358,10 +358,6 @@ export default function Home() {
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-fn-surface border border-fn-border text-fn-text-tertiary font-mono text-[11px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-fn-verified animate-pulse" />
-              gemini-flash-lite
-            </div>
           </div>
         </div>
       </header>

@@ -164,7 +164,7 @@ Return ONLY valid JSON matching this schema:
         prompt = self.build_prompt(input, playbook_snippets)
 
         try:
-            llm_response = await self.llm_provider.complete(
+            llm_response = await self.call_llm(
                 prompt=prompt,
                 system=SYSTEM_PROMPT,
             )

@@ -11,9 +11,11 @@ from gtm_copilot.agents.research_agent import ResearchAgent
 from gtm_copilot.agents.synthesis_agent import SynthesisAgent
 from gtm_copilot.llm import LLMProvider, get_default_llm_provider
 from gtm_copilot.models import (
+    AgentCallMetrics,
     FactCheckedBrief,
     FactCheckedOutreach,
     OutreachInput,
+    PipelineMetrics,
     ResearchInput,
 )
 from gtm_copilot.retrieval.hybrid_retriever import HybridRetriever
@@ -74,6 +76,38 @@ class AccountBriefOrchestrator:
             reranker=reranker,
         )
 
+    @staticmethod
+    def _aggregate_metrics(all_calls: list[AgentCallMetrics]) -> PipelineMetrics:
+        """Aggregate per-call metrics into a PipelineMetrics summary.
+
+        Args:
+            all_calls: Flat list of AgentCallMetrics from all participating agents.
+
+        Returns:
+            PipelineMetrics with totals computed.
+        """
+        total_latency = sum(c.latency_seconds for c in all_calls)
+        total_prompt = sum(c.prompt_tokens or 0 for c in all_calls)
+        total_completion = sum(c.completion_tokens or 0 for c in all_calls)
+        total_tok = sum(c.total_tokens or 0 for c in all_calls)
+
+        # Total cost is None if any individual call has no pricing data
+        costs = [c.estimated_cost_usd for c in all_calls]
+        if all(c is not None for c in costs) and costs:
+            total_cost: float | None = round(sum(costs), 8)  # type: ignore[assignment]
+        else:
+            total_cost = None
+
+        return PipelineMetrics(
+            agent_calls=all_calls,
+            total_latency_seconds=round(total_latency, 4),
+            total_prompt_tokens=total_prompt,
+            total_completion_tokens=total_completion,
+            total_tokens=total_tok,
+            total_estimated_cost_usd=total_cost,
+            call_count=len(all_calls),
+        )
+
     async def run(self, input: ResearchInput) -> FactCheckedBrief:
         """Run the full 4-stage Account Brief generation pipeline.
 
@@ -89,7 +123,7 @@ class AccountBriefOrchestrator:
             input: Target company name and/or URL.
 
         Returns:
-            Verified FactCheckedBrief.
+            Verified FactCheckedBrief (with metrics attached).
 
         Raises:
             RuntimeError: If synthesis fails.
@@ -128,10 +162,26 @@ class AccountBriefOrchestrator:
             source_context=combined_sources,
         )
 
+        # Collect and aggregate metrics from all participating agents
+        all_calls: list[AgentCallMetrics] = []
+        for agent in (
+            self.research_agent,
+            self.icp_agent,
+            self.synthesis_agent,
+            self.fact_check_agent,
+        ):
+            all_calls.extend(agent.flush_metrics())
+
+        fact_checked_brief.metrics = self._aggregate_metrics(all_calls)
+
         logger.info(
-            "Account Brief generation complete for '%s' (Faithfulness Score: %.2f)",
+            "Account Brief generation complete for '%s' (Faithfulness: %.2f, "
+            "LLM calls: %d, total tokens: %d, latency: %.2fs)",
             account_brief.company_name,
             fact_checked_brief.overall_faithfulness_score,
+            fact_checked_brief.metrics.call_count,
+            fact_checked_brief.metrics.total_tokens,
+            fact_checked_brief.metrics.total_latency_seconds,
         )
         return fact_checked_brief
 
@@ -140,14 +190,13 @@ class AccountBriefOrchestrator:
 
         Workflow:
         1. Outreach Agent: synthesizes 3-5 email variants and follow-up sequence.
-        2. Delay pacing to avoid burst rate limits.
-        3. Fact Check Agent: verifies all assertions in the outreach against AccountBrief and playbooks.
+        2. Fact Check Agent: verifies all assertions in the outreach against AccountBrief and playbooks.
 
         Args:
             input: Target AccountBrief with optional prospect contact details.
 
         Returns:
-            Verified FactCheckedOutreach package.
+            Verified FactCheckedOutreach package (with metrics attached).
 
         Raises:
             RuntimeError: If outreach synthesis fails.
@@ -173,12 +222,24 @@ class AccountBriefOrchestrator:
             source_context=combined_sources,
         )
 
+        # Collect and aggregate metrics from all participating agents
+        all_outreach_calls: list[AgentCallMetrics] = []
+        for agent in (self.outreach_agent, self.fact_check_agent):
+            all_outreach_calls.extend(agent.flush_metrics())
+
+        fact_checked_outreach.metrics = self._aggregate_metrics(all_outreach_calls)
+
         logger.info(
-            "Outreach generation complete for '%s' (Faithfulness Score: %.2f)",
+            "Outreach generation complete for '%s' (Faithfulness: %.2f, "
+            "LLM calls: %d, total tokens: %d, latency: %.2fs)",
             input.account_brief.company_name,
             fact_checked_outreach.overall_faithfulness_score,
+            fact_checked_outreach.metrics.call_count,
+            fact_checked_outreach.metrics.total_tokens,
+            fact_checked_outreach.metrics.total_latency_seconds,
         )
         return fact_checked_outreach
+
 
 
 async def generate_account_brief(

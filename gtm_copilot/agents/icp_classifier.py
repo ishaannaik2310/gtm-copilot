@@ -141,7 +141,7 @@ class ICPClassifierAgent(BaseAgent):
             prompt = self.build_prompt(input, criteria_chunks)
 
             # 3. Query LLM
-            llm_response = await self.llm_provider.complete(prompt=prompt, system=SYSTEM_PROMPT)
+            llm_response = await self.call_llm(prompt=prompt, system=SYSTEM_PROMPT)
 
             # 4. Parse JSON
             data = extract_json(llm_response)

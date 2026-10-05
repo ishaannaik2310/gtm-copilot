@@ -220,7 +220,7 @@ class ResearchAgent(BaseAgent):
         )
 
         try:
-            llm_response = await self.llm_provider.complete(prompt=prompt, system=SYSTEM_PROMPT)
+            llm_response = await self.call_llm(prompt=prompt, system=SYSTEM_PROMPT)
         except Exception as e:
             err_msg = f"LLM completion error: {str(e) or repr(e)}"
             logger.error(err_msg)

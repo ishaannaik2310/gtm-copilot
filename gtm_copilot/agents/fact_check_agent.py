@@ -230,7 +230,7 @@ Return ONLY valid JSON matching this schema:
         prompt = self.build_prompt(claims=batch_claims, source_contexts=source_context)
 
         try:
-            llm_response = await self.llm_provider.complete(
+            llm_response = await self.call_llm(
                 prompt=prompt,
                 system=SYSTEM_PROMPT,
             )

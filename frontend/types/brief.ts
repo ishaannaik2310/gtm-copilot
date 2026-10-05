@@ -30,11 +30,38 @@ export interface FactCheckResult {
   confidence: number;
 }
 
+// ---------------------------------------------------------------------------
+// Pipeline Observability
+// ---------------------------------------------------------------------------
+
+export interface AgentCallMetrics {
+  agent_name: string;
+  latency_seconds: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  estimated_cost_usd: number | null;
+  model: string | null;
+}
+
+export interface PipelineMetrics {
+  agent_calls: AgentCallMetrics[];
+  total_latency_seconds: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  total_estimated_cost_usd: number | null;
+  call_count: number;
+}
+
+// ---------------------------------------------------------------------------
+
 export interface FactCheckedBrief {
   brief: AccountBrief;
   fact_checks: FactCheckResult[];
   overall_faithfulness_score: number;
   flagged_claims: string[];
+  metrics?: PipelineMetrics | null;
 }
 
 export interface EmailVariant {
@@ -63,6 +90,7 @@ export interface FactCheckedOutreach {
   fact_checks: FactCheckResult[];
   overall_faithfulness_score: number;
   flagged_claims: string[];
+  metrics?: PipelineMetrics | null;
 }
 
 export interface OutreachInputPayload {
