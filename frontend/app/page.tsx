@@ -27,6 +27,7 @@ import {
   ChevronDown,
   Lock,
   Eye,
+  Timer,
 } from "lucide-react";
 import type {
   AccountBrief,
@@ -34,6 +35,7 @@ import type {
   FactCheckedOutreach,
   FactCheckResult,
   ICPFitLabel,
+  PipelineMetrics,
 } from "../types/brief";
 
 /* ============================================================
@@ -104,6 +106,121 @@ const STAGES: StageInfo[] = [
   { step: "03", agent: "SynthesisAgent", desc: "Brief compilation & grounding" },
   { step: "04", agent: "FactCheckAgent", desc: "Deterministic claim verification" },
 ];
+
+/* ============================================================
+   Pipeline Metrics Widget
+   ============================================================ */
+
+function PipelineMetricsWidget({ metrics }: { metrics: PipelineMetrics | null | undefined }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!metrics) return null;
+
+  const latency = metrics.total_latency_seconds.toFixed(1);
+  const cost = metrics.total_estimated_cost_usd != null
+    ? `$${metrics.total_estimated_cost_usd < 0.0001 ? metrics.total_estimated_cost_usd.toExponential(2) : metrics.total_estimated_cost_usd.toFixed(4)}`
+    : null;
+  const tokens = metrics.total_tokens > 0
+    ? metrics.total_tokens >= 1000
+      ? `${(metrics.total_tokens / 1000).toFixed(1)}k tok`
+      : `${metrics.total_tokens} tok`
+    : null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-fn-border">
+      {/* Collapsed pill row */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 group cursor-pointer w-full text-left"
+        aria-expanded={expanded}
+      >
+        <Timer className="w-3 h-3 text-fn-text-tertiary shrink-0" />
+        <span className="text-[10px] font-mono uppercase tracking-wider text-fn-text-tertiary group-hover:text-fn-text-secondary transition-colors">
+          Pipeline
+        </span>
+        {/* Summary pills */}
+        <div className="flex items-center gap-1.5 ml-1">
+          <span className="px-1.5 py-0.5 rounded bg-fn-elevated border border-fn-border text-[10px] font-mono text-fn-text-secondary tabular-nums">
+            {latency}s
+          </span>
+          {tokens && (
+            <span className="px-1.5 py-0.5 rounded bg-fn-elevated border border-fn-border text-[10px] font-mono text-fn-text-tertiary tabular-nums">
+              {tokens}
+            </span>
+          )}
+          {cost && (
+            <span className="px-1.5 py-0.5 rounded bg-fn-elevated border border-fn-border text-[10px] font-mono text-fn-text-tertiary tabular-nums">
+              {cost}
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          className={`w-3 h-3 text-fn-text-tertiary ml-auto shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Expanded per-agent breakdown */}
+      {expanded && metrics.agent_calls.length > 0 && (
+        <div className="mt-3 rounded-lg border border-fn-border overflow-hidden">
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-1.5 bg-fn-elevated border-b border-fn-border">
+            {["Agent", "Latency", "Tokens", "Est. Cost"].map((h) => (
+              <span key={h} className="text-[9px] font-mono uppercase tracking-wider text-fn-text-tertiary">
+                {h}
+              </span>
+            ))}
+          </div>
+          {/* Rows */}
+          {metrics.agent_calls.map((call, i) => (
+            <div
+              key={i}
+              className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 items-center ${
+                i < metrics.agent_calls.length - 1 ? "border-b border-fn-border" : ""
+              } hover:bg-fn-elevated/50 transition-colors`}
+            >
+              <span className="text-[11px] font-mono text-fn-text-secondary truncate">{call.agent_name}</span>
+              <span className="text-[11px] font-mono text-fn-text-tertiary tabular-nums text-right">
+                {call.latency_seconds.toFixed(2)}s
+              </span>
+              <span className="text-[11px] font-mono text-fn-text-tertiary tabular-nums text-right">
+                {call.total_tokens != null
+                  ? call.total_tokens >= 1000
+                    ? `${(call.total_tokens / 1000).toFixed(1)}k`
+                    : call.total_tokens
+                  : "—"}
+              </span>
+              <span className="text-[11px] font-mono text-fn-text-tertiary tabular-nums text-right">
+                {call.estimated_cost_usd != null
+                  ? call.estimated_cost_usd < 0.0001
+                    ? call.estimated_cost_usd.toExponential(1)
+                    : `$${call.estimated_cost_usd.toFixed(4)}`
+                  : "—"}
+              </span>
+            </div>
+          ))}
+          {/* Totals footer */}
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 bg-fn-elevated/60 border-t border-fn-border">
+            <span className="text-[10px] font-mono font-semibold text-fn-text-tertiary uppercase tracking-wider">
+              Total · {metrics.call_count} calls
+            </span>
+            <span className="text-[10px] font-mono font-semibold text-fn-text-secondary tabular-nums text-right">
+              {metrics.total_latency_seconds.toFixed(2)}s
+            </span>
+            <span className="text-[10px] font-mono font-semibold text-fn-text-secondary tabular-nums text-right">
+              {metrics.total_tokens >= 1000
+                ? `${(metrics.total_tokens / 1000).toFixed(1)}k`
+                : metrics.total_tokens}
+            </span>
+            <span className="text-[10px] font-mono font-semibold text-fn-text-secondary tabular-nums text-right">
+              {cost ?? "—"}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ============================================================
    Main Page Component
@@ -555,7 +672,11 @@ export default function Home() {
                     <span className="block mt-1 text-fn-text-tertiary">{currentFactChecks.length} claims audited against source context</span>
                   </div>
                 </div>
+
+                {/* Pipeline Performance — Brief */}
+                <PipelineMetricsWidget metrics={briefResult.metrics} />
               </div>
+
 
               {/* ── Tab Switcher ──────────────────────── */}
               {briefResult && (
@@ -904,6 +1025,13 @@ export default function Home() {
                           ))}
                         </ul>
                       </div>
+
+                      {/* Pipeline Performance — Outreach */}
+                      {outreachResult.metrics && (
+                        <div className="p-5 rounded-lg bg-fn-surface border border-fn-border">
+                          <PipelineMetricsWidget metrics={outreachResult.metrics} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
