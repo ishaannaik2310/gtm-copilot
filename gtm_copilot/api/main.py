@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from gtm_copilot.config import GEMINI_API_KEY, log_gemini_key_status
 from gtm_copilot.ingestion.chunker import chunk_documents
 from gtm_copilot.ingestion.loader import load_documents
 from gtm_copilot.llm import get_default_llm_provider
@@ -93,6 +94,7 @@ def initialize_shared_orchestrator() -> AccountBriefOrchestrator:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager to initialize shared resources on startup."""
+    log_gemini_key_status(GEMINI_API_KEY)
     if not hasattr(app.state, "orchestrator") or app.state.orchestrator is None:
         try:
             app.state.orchestrator = initialize_shared_orchestrator()

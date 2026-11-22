@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from gtm_copilot.config import DEFAULT_GEMINI_MODEL, GEMINI_API_KEY
+from gtm_copilot.config import DEFAULT_GEMINI_MODEL, GEMINI_API_KEY, sanitize_api_key
 from gtm_copilot.llm.base import LLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,8 @@ class GeminiProvider(LLMProvider):
             client: Optional httpx.AsyncClient instance for testing/dependency injection.
         """
         raw_key = api_key if api_key is not None else (os.getenv("GEMINI_API_KEY") or "")
-        self.api_key = raw_key.strip()
-        self.model = (model or DEFAULT_GEMINI_MODEL).strip()
+        self.api_key = sanitize_api_key(raw_key)
+        self.model = (model or DEFAULT_GEMINI_MODEL).strip().strip("'\"")
         self.base_url = (base_url or "https://generativelanguage.googleapis.com/v1beta").strip().rstrip("/")
         self.timeout = timeout
         self._client = client
@@ -49,7 +49,7 @@ class GeminiProvider(LLMProvider):
     ) -> str:
         """Send generation request to Google Gemini API."""
         raw_key = self.api_key if self.api_key else (os.getenv("GEMINI_API_KEY") or "")
-        resolved_key = raw_key.strip()
+        resolved_key = sanitize_api_key(raw_key)
         if not resolved_key:
             raise ValueError(
                 "Gemini API key is missing. Set GEMINI_API_KEY environment variable or pass api_key."
@@ -84,8 +84,8 @@ class GeminiProvider(LLMProvider):
             "x-goog-api-key": resolved_key,
         }
 
-        current_model = (self.model or DEFAULT_GEMINI_MODEL).strip()
-        url = f"{self.base_url}/models/{current_model}:generateContent?key={resolved_key}"
+        current_model = (self.model or DEFAULT_GEMINI_MODEL).strip().strip("'\"")
+        url = f"{self.base_url}/models/{current_model}:generateContent"
 
         max_attempts = 3
         response = None
@@ -101,6 +101,12 @@ class GeminiProvider(LLMProvider):
             if response.status_code == 200:
                 break
 
+            # On 401 (Unauthorized / Invalid API Key), fail immediately with a clear diagnostic error
+            if response.status_code == 401:
+                err_msg = "Gemini rejected the API key. Check GEMINI_API_KEY on the server"
+                logger.error("Gemini API 401 Unauthorized: %s", err_msg)
+                raise RuntimeError(err_msg)
+
             # On 429 (quota exceeded), do NOT retry; fail immediately with a clear message
             if response.status_code == 429:
                 err_msg = "Gemini API daily quota exceeded for this model. Try again later or switch models."
@@ -112,7 +118,7 @@ class GeminiProvider(LLMProvider):
                 # Fail over to gemini-3.6-flash if 3.5-flash experiences capacity spikes
                 if current_model == "gemini-3.5-flash":
                     current_model = "gemini-3.6-flash"
-                    url = f"{self.base_url}/models/{current_model}:generateContent?key={resolved_key}"
+                    url = f"{self.base_url}/models/{current_model}:generateContent"
                     logger.info("Failing over to %s due to HTTP %d", current_model, response.status_code)
 
                 retry_delay = 1.0 * attempt
