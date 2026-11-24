@@ -176,6 +176,27 @@ async def test_orchestrator_halts_when_synthesis_fails():
         await orchestrator.run(inp)
 
 
+@pytest.mark.asyncio
+async def test_orchestrator_halts_on_web_fetch_error():
+    # When a URL is provided but web retrieval fails, orchestrator surfaces the exact error
+    failing_research_output = ResearchOutput(
+        company_name=None,
+        source_urls=["https://spa-app.io"],
+        raw_context_used=[],
+        errors=["This site returned too little readable content (likely JavaScript-rendered or blocking automated requests)."],
+    )
+    orchestrator = AccountBriefOrchestrator(
+        research_agent=MockResearchAgent(research_output=failing_research_output),
+        icp_agent=MockICPClassifierAgent(),
+        synthesis_agent=MockSynthesisAgent(),
+        fact_check_agent=MockFactCheckAgent(),
+    )
+
+    inp = ResearchInput(url="https://spa-app.io")
+    with pytest.raises(RuntimeError, match="too little readable content"):
+        await orchestrator.run(inp)
+
+
 class MockOutreachAgent(BaseAgent):
     """Mock OutreachAgent."""
 

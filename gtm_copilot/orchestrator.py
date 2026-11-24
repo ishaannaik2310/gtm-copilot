@@ -134,6 +134,11 @@ class AccountBriefOrchestrator:
         logger.info("[1/4] Executing ResearchAgent...")
         research_output = await self.research_agent.run(input)
 
+        # Fail early if a target URL was specified but no readable web content could be retrieved
+        if input.url and not any("[Web Content" in ctx for ctx in research_output.raw_context_used):
+            if research_output.errors:
+                raise RuntimeError(research_output.errors[0])
+
         # 2. ICP Classifier Stage
         logger.info("[2/4] Executing ICPClassifierAgent...")
         icp_classification = await self.icp_agent.run(research_output)

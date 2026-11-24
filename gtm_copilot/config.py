@@ -16,6 +16,17 @@ PLAYBOOKS_DIR = DATA_DIR / (os.getenv("PLAYBOOKS_DIR_NAME") or "playbooks")
 SAMPLE_ACCOUNTS_DIR = DATA_DIR / (os.getenv("SAMPLE_ACCOUNTS_DIR_NAME") or "sample_accounts")
 CHROMA_PERSIST_DIR = PROJECT_ROOT / (os.getenv("CHROMA_PERSIST_DIR") or "chroma_db")
 
+# Model and Cache Paths
+MODEL_CACHE_DIR = PROJECT_ROOT / ".cache"
+HF_CACHE_DIR = MODEL_CACHE_DIR / "huggingface"
+CHROMA_CACHE_DIR = MODEL_CACHE_DIR / "chroma"
+
+if not os.getenv("HF_HOME"):
+    os.environ["HF_HOME"] = str(HF_CACHE_DIR)
+
+# Disable Chroma telemetry to eliminate 30s cold-start socket hangs
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 # Chunking Configuration
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE") or "400")
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_CHUNK_OVERLAP") or "50")

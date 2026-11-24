@@ -119,7 +119,22 @@ def client():
 def test_health_check(client):
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["ready"] is True
+    assert data["models_loaded"] is True
+
+
+def test_health_check_not_ready():
+    app = create_app()
+    app.state.orchestrator = None
+    unready_client = TestClient(app)
+    response = unready_client.get("/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["ready"] is False
+    assert data["models_loaded"] is False
 
 
 def test_generate_brief_success(client):

@@ -13,7 +13,7 @@ from gtm_copilot.config import (
     WEB_FETCH_TIMEOUT_SECONDS,
 )
 from gtm_copilot.llm import LLMProvider, extract_json, get_llm_provider
-from gtm_copilot.models import ResearchInput, ResearchOutput
+from gtm_copilot.models import ResearchInput, ResearchOutput, normalize_url
 from gtm_copilot.retrieval.hybrid_retriever import HybridRetriever
 from gtm_copilot.retrieval.reranker import Reranker
 
@@ -95,30 +95,64 @@ class ResearchAgent(BaseAgent):
         Returns:
             Tuple of (extracted_text, error_message).
         """
-        target_url = url.strip()
-        if not target_url.startswith("http://") and not target_url.startswith("https://"):
-            target_url = f"https://{target_url}"
+        target_url = normalize_url(url)
+        if not target_url:
+            return None, "Invalid or empty URL provided."
 
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (GTM-Copilot-Bot/1.0)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Upgrade-Insecure-Requests": "1",
         }
 
         try:
             if self.http_client is not None:
-                response = await self.http_client.get(target_url, headers=headers, timeout=self.timeout, follow_redirects=True)
+                response = await self.http_client.get(
+                    target_url,
+                    headers=headers,
+                    timeout=self.timeout,
+                    follow_redirects=True,
+                )
             else:
                 async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
-                    response = await client.get(target_url, headers=headers)
+                    response = await client.get(
+                        target_url,
+                        headers=headers,
+                        follow_redirects=True,
+                    )
 
-            if response.status_code != 200:
-                msg = f"HTTP {response.status_code} error when fetching {target_url}"
+            if response.status_code == 403:
+                msg = f"403 Forbidden: access denied when fetching {target_url} (the site is blocking automated requests or protected by Cloudflare)."
+                logger.warning(msg)
+                return None, msg
+            elif response.status_code == 404:
+                msg = f"Page not found (HTTP 404) at {target_url}. Please check that the URL is correct."
+                logger.warning(msg)
+                return None, msg
+            elif response.status_code != 200:
+                msg = f"The target site ({target_url}) returned HTTP {response.status_code}."
                 logger.warning(msg)
                 return None, msg
 
             extracted_text = extract_visible_text_from_html(response.text, max_chars=self.max_web_chars)
+
+            # Check for minimum readable content length (under 300 characters)
+            if len(extracted_text.strip()) < 300:
+                msg = "This site returned too little readable content (likely JavaScript-rendered or blocking automated requests)."
+                logger.warning("Low content length (%d chars) for %s: %s", len(extracted_text.strip()), target_url, msg)
+                return None, msg
+
             return extracted_text, None
 
+        except httpx.TimeoutException as exc:
+            msg = f"Connection to {target_url} timed out after {self.timeout}s (the server is unresponsive or blocking connections)."
+            logger.warning(msg)
+            return None, msg
         except Exception as exc:
             msg = f"Failed to fetch {target_url}: {str(exc)}"
             logger.warning(msg)

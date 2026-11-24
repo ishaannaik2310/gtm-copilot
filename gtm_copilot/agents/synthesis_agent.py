@@ -220,6 +220,9 @@ class SynthesisAgent(BaseAgent):
             )
 
         except Exception as e:
-            err_msg = f"SynthesisAgent failed to generate AccountBrief: {str(e) or repr(e)}"
+            if research_output.errors:
+                err_msg = research_output.errors[0]
+            else:
+                err_msg = f"SynthesisAgent failed to generate AccountBrief: {str(e) or repr(e)}"
             logger.error(err_msg)
             raise RuntimeError(err_msg) from e

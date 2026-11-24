@@ -1,0 +1,117 @@
+{
+  "brief": {
+    "company_name": "Notion",
+    "industry": "Collaborative Software & AI Productivity",
+    "icp_classification": {
+      "fit_score": 0.94,
+      "fit_label": "strong_fit",
+      "rationale": "High-growth software company scaling outbound enterprise GTM; fits all primary ICP criteria with rich product and hiring signals.",
+      "matched_criteria": [
+        "B2B SaaS / Enterprise productivity space",
+        "Scaling sales team (>500 employees, rapid ARR expansion)",
+        "Adopting enterprise AI workflows"
+      ],
+      "mismatched_criteria": []
+    },
+    "executive_summary": "Notion is a connected workspace where teams create docs, manage projects, and organize knowledge, now augmented with native AI capabilities.",
+    "key_products_or_services": [
+      "Notion AI (Q&A, automated writing, and autofill database properties)",
+      "Wikis and team knowledge management",
+      "Project management and agile sprint tracking",
+      "Docs and collaborative workspaces"
+    ],
+    "likely_pain_points": [
+      "Enterprise sales reps spending 45+ minutes manually parsing company knowledge before outbound calls",
+      "Risk of reps relying on unverified AI summaries that fabricate account facts or metrics in client emails",
+      "Inconsistent qualification across growing SDR cohorts when ramping into enterprise accounts"
+    ],
+    "suggested_talk_tracks": [
+      "Show how verified GTM Copilot dossiers audit every claim against live sources so reps never hallucinate",
+      "Highlight automated 2-minute pre-call intelligence generation mapped directly to sales battlecards",
+      "Share how sales engineering and account executives achieve 100% grounded outreach sequences"
+    ],
+    "objection_handling_notes": [
+      "Objection: 'We already use ChatGPT / Notion AI for writing emails.' -> Response: 'Generic LLMs generate ungrounded claims with made-up stats. GTM Copilot audits every single sentence against cited sources and flags hallucinations before sending.'",
+      "Objection: 'Our reps already have ZoomInfo.' -> Response: 'ZoomInfo provides static contact data; GTM Copilot conducts live web intelligence synthesis and generates audited talk tracks in seconds.'"
+    ],
+    "source_urls": ["https://www.notion.so"]
+  },
+  "fact_checks": [
+    {
+      "claim": "Notion is a connected workspace where teams create docs, manage projects, and organize knowledge.",
+      "status": "directly_supported",
+      "supported": true,
+      "supporting_evidence": "Notion is the connected workspace where better, faster work happens. Now with Notion AI.",
+      "confidence": 0.98
+    },
+    {
+      "claim": "Notion offers native AI features including Q&A and automated database autofill.",
+      "status": "directly_supported",
+      "supported": true,
+      "supporting_evidence": "Notion AI: Access the knowledge of your entire company with Q&A and autofill database properties.",
+      "confidence": 0.96
+    },
+    {
+      "claim": "Enterprise sales reps spend 45+ minutes manually researching accounts before outreach.",
+      "status": "reasonable_inference",
+      "supported": true,
+      "supporting_evidence": "Playbook signal: Account research and pre-call prep consumes an average of 45-60 minutes per enterprise target.",
+      "confidence": 0.91
+    },
+    {
+      "claim": "Notion is scaling outbound GTM with an expanding enterprise sales team.",
+      "status": "reasonable_inference",
+      "supported": true,
+      "supporting_evidence": "Company careers page signals aggressive hiring across Enterprise Account Executive and Sales Engineering roles.",
+      "confidence": 0.89
+    }
+  ],
+  "overall_faithfulness_score": 1.0,
+  "flagged_claims": [],
+  "metrics": {
+    "agent_calls": [
+      {
+        "agent_name": "ResearchAgent",
+        "latency_seconds": 1.84,
+        "prompt_tokens": 1420,
+        "completion_tokens": 480,
+        "total_tokens": 1900,
+        "estimated_cost_usd": 0.00018,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "ICPClassifier",
+        "latency_seconds": 0.92,
+        "prompt_tokens": 890,
+        "completion_tokens": 210,
+        "total_tokens": 1100,
+        "estimated_cost_usd": 0.00009,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "SynthesisAgent",
+        "latency_seconds": 2.15,
+        "prompt_tokens": 2100,
+        "completion_tokens": 650,
+        "total_tokens": 2750,
+        "estimated_cost_usd": 0.00028,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "FactCheckAgent",
+        "latency_seconds": 1.45,
+        "prompt_tokens": 1850,
+        "completion_tokens": 380,
+        "total_tokens": 2230,
+        "estimated_cost_usd": 0.00021,
+        "model": "gemini-flash-lite-latest"
+      }
+    ],
+    "total_latency_seconds": 6.36,
+    "total_prompt_tokens": 6260,
+    "total_completion_tokens": 1720,
+    "total_tokens": 7980,
+    "total_estimated_cost_usd": 0.00076,
+    "call_count": 4
+  }
+}

@@ -37,6 +37,7 @@ import type {
   ICPFitLabel,
   PipelineMetrics,
 } from "../types/brief";
+import { STATIC_EXAMPLES } from "./examples";
 
 /* ============================================================
    API Helpers (preserved from prior implementation)
@@ -126,6 +127,8 @@ function PipelineMetricsWidget({ metrics }: { metrics: PipelineMetrics | null | 
       : `${metrics.total_tokens} tok`
     : null;
 
+  const calls = metrics.per_agent_breakdown || metrics.agent_calls || [];
+
   return (
     <div className="mt-4 pt-4 border-t border-fn-border">
       {/* Collapsed pill row */}
@@ -161,7 +164,7 @@ function PipelineMetricsWidget({ metrics }: { metrics: PipelineMetrics | null | 
       </button>
 
       {/* Expanded per-agent breakdown */}
-      {expanded && metrics.agent_calls.length > 0 && (
+      {expanded && calls.length > 0 && (
         <div className="mt-3 rounded-lg border border-fn-border overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-1.5 bg-fn-elevated border-b border-fn-border">
@@ -172,11 +175,11 @@ function PipelineMetricsWidget({ metrics }: { metrics: PipelineMetrics | null | 
             ))}
           </div>
           {/* Rows */}
-          {metrics.agent_calls.map((call, i) => (
+          {calls.map((call, i) => (
             <div
               key={i}
               className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 items-center ${
-                i < metrics.agent_calls.length - 1 ? "border-b border-fn-border" : ""
+                i < calls.length - 1 ? "border-b border-fn-border" : ""
               } hover:bg-fn-elevated/50 transition-colors`}
             >
               <span className="text-[11px] font-mono text-fn-text-secondary truncate">{call.agent_name}</span>
@@ -202,7 +205,7 @@ function PipelineMetricsWidget({ metrics }: { metrics: PipelineMetrics | null | 
           {/* Totals footer */}
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 bg-fn-elevated/60 border-t border-fn-border">
             <span className="text-[10px] font-mono font-semibold text-fn-text-tertiary uppercase tracking-wider">
-              Total · {metrics.call_count} calls
+              Total · {metrics.call_count ?? calls.length} calls
             </span>
             <span className="text-[10px] font-mono font-semibold text-fn-text-secondary tabular-nums text-right">
               {metrics.total_latency_seconds.toFixed(2)}s
@@ -245,6 +248,11 @@ export default function Home() {
   const [selectedEmailToneIndex, setSelectedEmailToneIndex] = useState(0);
   const [showDossierCheatSheet, setShowDossierCheatSheet] = useState(false);
 
+  // Observability & Pre-warm states
+  const [isServerWarming, setIsServerWarming] = useState(true);
+  const [showHeaderMetrics, setShowHeaderMetrics] = useState(false);
+  const [isPreGenerated, setIsPreGenerated] = useState(false);
+
   // Results
   const [briefResult, setBriefResult] = useState<FactCheckedBrief | null>(null);
   const [outreachResult, setOutreachResult] = useState<FactCheckedOutreach | null>(null);
@@ -254,6 +262,13 @@ export default function Home() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Derived
+  const currentMetrics: PipelineMetrics | null | undefined =
+    activeTab === "outreach" && outreachResult
+      ? outreachResult.metrics
+      : briefResult
+      ? briefResult.metrics
+      : null;
+
   const currentFactChecks: FactCheckResult[] =
     activeTab === "outreach" && outreachResult
       ? outreachResult.fact_checks
@@ -278,6 +293,35 @@ export default function Home() {
   const directlyCount = currentFactChecks.filter((f) => f.status === "directly_supported").length;
   const inferenceCount = currentFactChecks.filter((f) => f.status === "reasonable_inference").length;
   const flaggedCount = currentFlaggedClaims.length;
+
+  // Pre-warm ping on page load to wake Render backend and monitor readiness
+  useEffect(() => {
+    let isMounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    const checkServerHealth = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/health`);
+        if (response.ok) {
+          const data = await response.json();
+          if (isMounted && data.ready !== false) {
+            setIsServerWarming(false);
+            if (pollInterval) clearInterval(pollInterval);
+          }
+        }
+      } catch {
+        // Silently catch and retry until awake
+      }
+    };
+
+    checkServerHealth();
+    pollInterval = setInterval(checkServerHealth, 4000);
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, []);
 
   // Stage timer
   useEffect(() => {
@@ -312,6 +356,23 @@ export default function Home() {
 
   /* ---- Handlers ---- */
 
+  const handleLoadExample = (exampleId: string) => {
+    const example = STATIC_EXAMPLES.find((e) => e.id === exampleId);
+    if (!example) return;
+    setError(null);
+    setIsLoadingBrief(false);
+    setIsLoadingOutreach(false);
+    setCompanyName(example.name);
+    setUrl(example.url);
+    setBriefResult(example.data);
+    setOutreachResult(null);
+    setIsPreGenerated(true);
+    setActiveTab("brief");
+    if (example.data.fact_checks.length > 0) {
+      setSelectedClaim(example.data.fact_checks[0]);
+    }
+  };
+
   const handleGenerateBrief = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmedName = companyName.trim();
@@ -321,6 +382,7 @@ export default function Home() {
       return;
     }
     setError(null);
+    setIsPreGenerated(false);
     setBriefResult(null);
     setOutreachResult(null);
     setContactName("");
@@ -343,7 +405,15 @@ export default function Home() {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+        let message = `HTTP ${response.status}: ${response.statusText}`;
+        if (typeof errorData.detail === "string" && errorData.detail.trim()) {
+          message = errorData.detail.trim();
+        } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+          message = errorData.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+        } else if (typeof errorData.message === "string" && errorData.message.trim()) {
+          message = errorData.message.trim();
+        }
+        throw new Error(message);
       }
       const data: FactCheckedBrief = await response.json();
       setBriefResult(data);
@@ -384,7 +454,15 @@ export default function Home() {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+        let message = `HTTP ${response.status}: ${response.statusText}`;
+        if (typeof errorData.detail === "string" && errorData.detail.trim()) {
+          message = errorData.detail.trim();
+        } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+          message = errorData.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+        } else if (typeof errorData.message === "string" && errorData.message.trim()) {
+          message = errorData.message.trim();
+        }
+        throw new Error(message);
       }
       const data: FactCheckedOutreach = await response.json();
       setOutreachResult(data);
@@ -465,7 +543,16 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Pre-warm Server Status Indicator */}
+            {isServerWarming && (
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-amber-950/40 border border-amber-800/40 text-amber-400 text-xs font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+                <span className="hidden sm:inline">Server warming up...</span>
+                <span className="sm:hidden">Warming...</span>
+              </div>
+            )}
+
             {/* Live Faithfulness Metric */}
             {(briefResult || outreachResult) && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-fn-proof-subtle border border-amber-800/30">
@@ -473,6 +560,59 @@ export default function Home() {
                 <span className="text-xs font-mono font-semibold text-fn-proof">
                   {Math.round(currentFaithfulness * 100)}% Grounded
                 </span>
+              </div>
+            )}
+
+            {/* Pipeline Performance Pill (Header) */}
+            {currentMetrics && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowHeaderMetrics((prev) => !prev)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-fn-elevated border border-fn-border hover:border-fn-proof/40 transition-colors text-xs font-mono text-fn-text-secondary cursor-pointer"
+                  title="Pipeline latency & estimated cost"
+                >
+                  <Timer className="w-3 h-3 text-fn-proof shrink-0" />
+                  <span className="font-semibold text-fn-text-primary tabular-nums">
+                    {currentMetrics.total_latency_seconds.toFixed(1)}s
+                  </span>
+                  {currentMetrics.total_estimated_cost_usd != null && (
+                    <>
+                      <span className="text-fn-text-tertiary">•</span>
+                      <span className="tabular-nums">
+                        ${currentMetrics.total_estimated_cost_usd < 0.0001
+                          ? currentMetrics.total_estimated_cost_usd.toExponential(1)
+                          : currentMetrics.total_estimated_cost_usd.toFixed(4)}
+                      </span>
+                    </>
+                  )}
+                  <ChevronDown className={`w-3 h-3 text-fn-text-tertiary transition-transform ${showHeaderMetrics ? "rotate-180" : ""}`} />
+                </button>
+
+                {showHeaderMetrics && (
+                  <div className="absolute right-0 mt-2 w-80 p-3.5 rounded-xl bg-fn-surface border border-fn-border shadow-2xl z-50 animate-fade-in-up">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-fn-border">
+                      <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-fn-text-primary">
+                        Pipeline Performance
+                      </span>
+                      <span className="text-[10px] font-mono text-fn-text-tertiary">
+                        {currentMetrics.total_tokens ? `${currentMetrics.total_tokens} tok` : ""}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {(currentMetrics.per_agent_breakdown || currentMetrics.agent_calls || []).map((call, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b border-fn-border/40 last:border-none">
+                          <span className="text-fn-text-secondary truncate max-w-[150px]">{call.agent_name}</span>
+                          <div className="flex items-center gap-2 text-fn-text-tertiary tabular-nums">
+                            <span>{call.latency_seconds.toFixed(2)}s</span>
+                            {call.total_tokens != null && <span>({call.total_tokens} tok)</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -530,17 +670,53 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Preset */}
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <span className="text-fn-text-tertiary font-mono">Preset:</span>
-              <button
-                type="button"
-                onClick={() => { setCompanyName("Notion"); setUrl("https://www.notion.so"); setError(null); }}
-                disabled={isLoadingBrief || isLoadingOutreach}
-                className="px-2 py-0.5 rounded bg-fn-elevated hover:bg-fn-border text-fn-text-secondary text-xs font-display transition-colors cursor-pointer"
-              >
-                Notion
-              </button>
+            {/* Presets & Instant Static Examples */}
+            <div className="mt-4 pt-3.5 border-t border-fn-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px]">Fill Inputs:</span>
+                <button
+                  type="button"
+                  onClick={() => { setCompanyName("Notion"); setUrl("https://www.notion.so"); setError(null); }}
+                  disabled={isLoadingBrief || isLoadingOutreach}
+                  className="px-2 py-0.5 rounded bg-fn-elevated hover:bg-fn-border text-fn-text-secondary text-xs font-display transition-colors cursor-pointer"
+                >
+                  Notion
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCompanyName("GitHub"); setUrl("https://github.com"); setError(null); }}
+                  disabled={isLoadingBrief || isLoadingOutreach}
+                  className="px-2 py-0.5 rounded bg-fn-elevated hover:bg-fn-border text-fn-text-secondary text-xs font-display transition-colors cursor-pointer"
+                >
+                  GitHub
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-fn-proof" /> Instant Examples:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleLoadExample("notion")}
+                  disabled={isLoadingBrief || isLoadingOutreach}
+                  className="px-2.5 py-1 rounded bg-amber-950/30 border border-amber-800/40 hover:bg-amber-900/30 text-fn-proof text-xs font-display font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Load pre-generated Notion brief instantly (0 API calls)"
+                >
+                  <span>⚡ Notion</span>
+                  <span className="text-[10px] opacity-75 font-mono">Pre-generated</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLoadExample("github")}
+                  disabled={isLoadingBrief || isLoadingOutreach}
+                  className="px-2.5 py-1 rounded bg-amber-950/30 border border-amber-800/40 hover:bg-amber-900/30 text-fn-proof text-xs font-display font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Load pre-generated GitHub brief instantly (0 API calls)"
+                >
+                  <span>⚡ GitHub</span>
+                  <span className="text-[10px] opacity-75 font-mono">Pre-generated</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -625,6 +801,19 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in-up">
             {/* ── Left Column: Content (7/12) ─────────── */}
             <div className="lg:col-span-7 space-y-8">
+              {/* Pre-generated static indicator */}
+              {isPreGenerated && (
+                <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono text-amber-300">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-fn-proof shrink-0" />
+                    <span>Pre-generated Example Dossier (rendered instantly, 0 API calls)</span>
+                  </div>
+                  <span className="text-[10px] text-fn-text-tertiary">
+                    Live generation available via &quot;Research &amp; Qualify&quot; above
+                  </span>
+                </div>
+              )}
+
               {/* Hero: Company + Faithfulness Score */}
               <div className="bg-fn-surface rounded-xl border border-fn-border p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

@@ -45,13 +45,14 @@ export interface AgentCallMetrics {
 }
 
 export interface PipelineMetrics {
-  agent_calls: AgentCallMetrics[];
+  agent_calls?: AgentCallMetrics[];
+  per_agent_breakdown?: AgentCallMetrics[];
   total_latency_seconds: number;
-  total_prompt_tokens: number;
-  total_completion_tokens: number;
+  total_prompt_tokens?: number;
+  total_completion_tokens?: number;
   total_tokens: number;
   total_estimated_cost_usd: number | null;
-  call_count: number;
+  call_count?: number;
 }
 
 // ---------------------------------------------------------------------------

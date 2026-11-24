@@ -8,8 +8,10 @@ from typing import Any, Dict, List, Optional, Union
 import chromadb
 from chromadb.api import ClientAPI
 from chromadb.api.models.Collection import Collection
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
 from gtm_copilot.config import (
+    CHROMA_CACHE_DIR,
     CHROMA_PERSIST_DIR,
     DEFAULT_COLLECTION_NAME,
     DEFAULT_TOP_K,
@@ -17,6 +19,11 @@ from gtm_copilot.config import (
 from gtm_copilot.models import Chunk
 
 logger = logging.getLogger(__name__)
+
+# Point ONNX downloads/cache to project-local cache if present
+_project_onnx_dir = CHROMA_CACHE_DIR / "onnx_models" / "all-MiniLM-L6-v2"
+if _project_onnx_dir.exists():
+    ONNXMiniLM_L6_V2.DOWNLOAD_PATH = str(_project_onnx_dir)
 
 
 def sanitize_metadata_for_chroma(metadata: Dict[str, Any]) -> Dict[str, Union[str, int, float, bool]]:
@@ -60,7 +67,10 @@ class VectorStore:
         else:
             persist_path = Path(persist_directory or CHROMA_PERSIST_DIR).resolve()
             persist_path.mkdir(parents=True, exist_ok=True)
-            self.client = chromadb.PersistentClient(path=str(persist_path))
+            self.client = chromadb.PersistentClient(
+                path=str(persist_path),
+                settings=chromadb.config.Settings(anonymized_telemetry=False),
+            )
 
         get_or_create_kwargs: Dict[str, Any] = {"name": self.collection_name}
         if self.embedding_function is not None:

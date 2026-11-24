@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 import logging
 import os
+import time
 
 import chromadb
 from fastapi import FastAPI, HTTPException, status
@@ -68,27 +69,55 @@ class OutreachRequest(BaseModel):
 
 def initialize_shared_orchestrator() -> AccountBriefOrchestrator:
     """Initialize and index the shared RAG knowledge base for the API server."""
+    t_start = time.perf_counter()
     logger.info("Initializing knowledge base indexing for FastAPI backend...")
+
+    t0 = time.perf_counter()
     docs = load_documents()
     chunks = chunk_documents(docs, chunk_size=300, chunk_overlap=40)
+    t_docs = time.perf_counter() - t0
+    logger.info("Lifespan Phase 1 (Docs & Chunks): %.3fs (%d docs, %d chunks)", t_docs, len(docs), len(chunks))
 
-    chroma_client = chromadb.EphemeralClient()
+    t0 = time.perf_counter()
+    chroma_client = chromadb.EphemeralClient(
+        settings=chromadb.config.Settings(anonymized_telemetry=False)
+    )
     vector_store = VectorStore(
         collection_name="api_shared_knowledge_base",
         client=chroma_client,
     )
+    t_chroma = time.perf_counter() - t0
+    logger.info("Lifespan Phase 2 (Chroma Client & VectorStore): %.3fs", t_chroma)
+
+    t0 = time.perf_counter()
     bm25 = BM25Retriever()
     hybrid = HybridRetriever(vector_store=vector_store, bm25_retriever=bm25, rrf_k=60)
-    hybrid.index(chunks)
-    reranker = Reranker()
-    llm_provider = get_default_llm_provider()
+    t_hybrid_setup = time.perf_counter() - t0
+    logger.info("Lifespan Phase 3 (BM25 & Hybrid Setup): %.3fs", t_hybrid_setup)
 
-    logger.info("Shared knowledge base initialized with %d chunks.", len(chunks))
-    return AccountBriefOrchestrator(
+    t0 = time.perf_counter()
+    hybrid.index(chunks)
+    t_indexing = time.perf_counter() - t0
+    logger.info("Lifespan Phase 4 (Hybrid Indexing & Embeddings): %.3fs", t_indexing)
+
+    t0 = time.perf_counter()
+    reranker = Reranker()
+    t_reranker = time.perf_counter() - t0
+    logger.info("Lifespan Phase 5 (Reranker Init): %.3fs", t_reranker)
+
+    t0 = time.perf_counter()
+    llm_provider = get_default_llm_provider()
+    orchestrator = AccountBriefOrchestrator(
         hybrid_retriever=hybrid,
         reranker=reranker,
         llm_provider=llm_provider,
     )
+    t_orch = time.perf_counter() - t0
+    logger.info("Lifespan Phase 6 (LLM & Orchestrator Wiring): %.3fs", t_orch)
+
+    total_time = time.perf_counter() - t_start
+    logger.info("Shared knowledge base initialized successfully in %.3fs with %d chunks.", total_time, len(chunks))
+    return orchestrator
 
 
 @asynccontextmanager
@@ -139,9 +168,15 @@ def create_app() -> FastAPI:
     )
 
     @application.get("/api/health", status_code=status.HTTP_200_OK)
-    async def health_check() -> Dict[str, str]:
-        """Simple health check endpoint."""
-        return {"status": "ok"}
+    async def health_check() -> Dict[str, Any]:
+        """Readiness and health check endpoint."""
+        orchestrator = getattr(application.state, "orchestrator", None)
+        models_loaded = orchestrator is not None
+        return {
+            "status": "ok",
+            "ready": models_loaded,
+            "models_loaded": models_loaded,
+        }
 
     @application.post(
         "/api/brief",

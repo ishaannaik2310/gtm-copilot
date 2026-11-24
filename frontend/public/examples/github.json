@@ -1,0 +1,117 @@
+{
+  "brief": {
+    "company_name": "GitHub",
+    "industry": "Developer Tools & Cloud Infrastructure",
+    "icp_classification": {
+      "fit_score": 0.96,
+      "fit_label": "strong_fit",
+      "rationale": "Global leader in developer platforms and AI code generation (Copilot), with a large enterprise sales force driving Copilot Enterprise adoption.",
+      "matched_criteria": [
+        "Tier-1 developer platform & enterprise cloud software",
+        "Large enterprise GTM team driving strategic enterprise expansion",
+        "Deep focus on developer productivity and grounded AI"
+      ],
+      "mismatched_criteria": []
+    },
+    "executive_summary": "GitHub is the complete developer platform to build, scale, and deliver secure software, powered by GitHub Copilot and GitHub Enterprise.",
+    "key_products_or_services": [
+      "GitHub Copilot & Copilot Enterprise (AI pair programmer and codebase chat)",
+      "GitHub Enterprise Cloud & Server (source code management and governance)",
+      "GitHub Actions (CI/CD pipeline automation)",
+      "GitHub Advanced Security (code scanning, secret scanning, and dependency review)"
+    ],
+    "likely_pain_points": [
+      "Enterprise sales reps face high technical buyer scrutiny and cannot afford inaccurate claims about enterprise security or compliance",
+      "Reps need rapid, verified account briefs on prospects' current CI/CD stacks and developer headcounts before pitching Copilot Enterprise",
+      "Lengthy pre-call preparation slowing enterprise outbound deal velocity across EMEA and APAC"
+    ],
+    "suggested_talk_tracks": [
+      "Demonstrate how GTM Copilot generates verified, audit-backed account dossiers for enterprise software sellers in under 60 seconds",
+      "Position audited intelligence as the enterprise sales equivalent to GitHub Copilot for developers: speed with verifiable accuracy",
+      "Highlight automated objection handling specifically tuned for security and engineering leadership buyers"
+    ],
+    "objection_handling_notes": [
+      "Objection: 'Our sales engineers already manually audit technical accounts.' -> Response: 'GTM Copilot automates the first 80% of research in 60 seconds and cites every source sentence, freeing SEs to focus on architecture and deep technical pilots.'",
+      "Objection: 'We rely on LinkedIn and Sales Navigator.' -> Response: 'Sales Navigator shows organizational titles; GTM Copilot synthesizes company product launches, technical pain points, and audits claims against verified text.'"
+    ],
+    "source_urls": ["https://github.com"]
+  },
+  "fact_checks": [
+    {
+      "claim": "GitHub is a developer platform to build, scale, and deliver secure software with GitHub Copilot.",
+      "status": "directly_supported",
+      "supported": true,
+      "supporting_evidence": "GitHub: The world's leading AI-powered developer platform to build, scale, and deliver secure software.",
+      "confidence": 0.99
+    },
+    {
+      "claim": "GitHub provides GitHub Actions for CI/CD automation and GitHub Advanced Security for code scanning.",
+      "status": "directly_supported",
+      "supported": true,
+      "supporting_evidence": "GitHub Actions automates your build, test, and deployment pipeline. GitHub Advanced Security delivers native security scanning.",
+      "confidence": 0.97
+    },
+    {
+      "claim": "Enterprise software buyers demand high accuracy and penalize hallucinated sales claims.",
+      "status": "reasonable_inference",
+      "supported": true,
+      "supporting_evidence": "Internal GTM playbook: Enterprise engineering leaders reject outbound pitches containing ungrounded or fabricated technical claims.",
+      "confidence": 0.92
+    },
+    {
+      "claim": "GitHub Enterprise includes codebase chat and organizational customization.",
+      "status": "directly_supported",
+      "supported": true,
+      "supporting_evidence": "GitHub Copilot Enterprise brings AI to every phase of software development with personalized codebase indexing.",
+      "confidence": 0.95
+    }
+  ],
+  "overall_faithfulness_score": 1.0,
+  "flagged_claims": [],
+  "metrics": {
+    "agent_calls": [
+      {
+        "agent_name": "ResearchAgent",
+        "latency_seconds": 1.72,
+        "prompt_tokens": 1510,
+        "completion_tokens": 510,
+        "total_tokens": 2020,
+        "estimated_cost_usd": 0.00019,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "ICPClassifier",
+        "latency_seconds": 0.88,
+        "prompt_tokens": 920,
+        "completion_tokens": 220,
+        "total_tokens": 1140,
+        "estimated_cost_usd": 0.00010,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "SynthesisAgent",
+        "latency_seconds": 2.05,
+        "prompt_tokens": 2250,
+        "completion_tokens": 680,
+        "total_tokens": 2930,
+        "estimated_cost_usd": 0.00030,
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "agent_name": "FactCheckAgent",
+        "latency_seconds": 1.39,
+        "prompt_tokens": 1900,
+        "completion_tokens": 390,
+        "total_tokens": 2290,
+        "estimated_cost_usd": 0.00022,
+        "model": "gemini-flash-lite-latest"
+      }
+    ],
+    "total_latency_seconds": 6.04,
+    "total_prompt_tokens": 6580,
+    "total_completion_tokens": 1800,
+    "total_tokens": 8380,
+    "total_estimated_cost_usd": 0.00081,
+    "call_count": 4
+  }
+}

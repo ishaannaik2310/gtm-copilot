@@ -25,6 +25,10 @@ class PipelineMetrics(BaseModel):
         default_factory=list,
         description="Per-call metrics for each LLM call in the pipeline.",
     )
+    per_agent_breakdown: List[AgentCallMetrics] = Field(
+        default_factory=list,
+        description="Per-agent metrics breakdown (populated alongside agent_calls).",
+    )
     total_latency_seconds: float = Field(
         default=0.0,
         description="Sum of all individual LLM call latencies (does not include non-LLM work).",
@@ -37,6 +41,13 @@ class PipelineMetrics(BaseModel):
         description="Total estimated USD cost across all calls (None if any call lacks pricing data).",
     )
     call_count: int = Field(default=0, description="Total number of LLM API calls made.")
+
+    def model_post_init(self, __context: Any) -> None:
+        """Keep agent_calls and per_agent_breakdown in sync."""
+        if self.agent_calls and not self.per_agent_breakdown:
+            self.per_agent_breakdown = list(self.agent_calls)
+        elif self.per_agent_breakdown and not self.agent_calls:
+            self.agent_calls = list(self.per_agent_breakdown)
 
 
 class Document(BaseModel):
@@ -90,6 +101,22 @@ class Account(BaseModel):
     )
 
 
+def normalize_url(url: Optional[str]) -> Optional[str]:
+    """Normalize website URL by stripping whitespace, trailing slashes,
+
+    and prepending https:// if scheme is missing.
+    """
+    if not url:
+        return None
+    cleaned = url.strip()
+    if not cleaned:
+        return None
+    if not cleaned.startswith("http://") and not cleaned.startswith("https://"):
+        cleaned = f"https://{cleaned}"
+    cleaned = cleaned.rstrip("/")
+    return cleaned
+
+
 class ResearchInput(BaseModel):
     """Input parameters for the Research Agent."""
 
@@ -103,9 +130,14 @@ class ResearchInput(BaseModel):
     )
 
     def model_post_init(self, __context: Any) -> None:
-        """Validate that at least one of company_name or url is supplied."""
-        has_name = self.company_name and self.company_name.strip()
-        has_url = self.url and self.url.strip()
+        """Validate and normalize company_name and url."""
+        if self.company_name:
+            self.company_name = self.company_name.strip() or None
+        if self.url:
+            self.url = normalize_url(self.url)
+
+        has_name = bool(self.company_name)
+        has_url = bool(self.url)
         if not has_name and not has_url:
             raise ValueError("At least one of 'company_name' or 'url' must be provided.")
 

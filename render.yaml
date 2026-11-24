@@ -3,7 +3,7 @@ services:
     name: gtm-copilot-api
     runtime: python
     plan: free
-    buildCommand: pip install -e .
+    buildCommand: pip install -e . && python scripts/download_models.py
     startCommand: uvicorn gtm_copilot.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
@@ -13,3 +13,7 @@ services:
         value: gemini-flash-lite-latest
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: HF_HOME
+        value: .cache/huggingface
+      - key: ANONYMIZED_TELEMETRY
+        value: "False"

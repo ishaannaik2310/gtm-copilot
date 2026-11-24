@@ -39,6 +39,7 @@ htmlcov/
 # Vector Store / Chroma Data
 chroma_db/
 *.chroma
+.cache/
 
 # IDEs & System Files
 .vscode/

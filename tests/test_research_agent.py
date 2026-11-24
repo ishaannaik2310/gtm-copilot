@@ -70,6 +70,28 @@ def test_research_input_validation():
         ResearchInput(company_name="", url="   ")
 
 
+def test_research_input_url_normalization():
+    # Missing scheme -> prepend https://
+    inp1 = ResearchInput(url="example.com")
+    assert inp1.url == "https://example.com"
+
+    # Trailing slash stripped
+    inp2 = ResearchInput(url="example.com/")
+    assert inp2.url == "https://example.com"
+
+    # Whitespace and trailing slash stripped
+    inp3 = ResearchInput(url="   example.com/   ")
+    assert inp3.url == "https://example.com"
+
+    # Existing http scheme preserved, trailing slash stripped
+    inp4 = ResearchInput(url="http://subdomain.example.com/")
+    assert inp4.url == "http://subdomain.example.com"
+
+    # Path preserved without trailing slash
+    inp5 = ResearchInput(url="https://example.com/product/overview/")
+    assert inp5.url == "https://example.com/product/overview"
+
+
 def test_extract_visible_text_from_html():
     sample_html = """
     <!DOCTYPE html>
@@ -98,9 +120,16 @@ def test_extract_visible_text_from_html():
 
 @pytest.mark.asyncio
 async def test_research_agent_successful_run():
-    # Mock HTML response
+    # Mock HTML response with sufficient length (> 300 characters)
     def handle_request(request: httpx.Request) -> httpx.Response:
-        html_content = "<html><head><title>CloudScale Data</title></head><body><h1>CloudScale Platform</h1><p>Kubernetes monitoring for Series B startups.</p></body></html>"
+        html_content = (
+            "<html><head><title>CloudScale Data Inc - Kubernetes Cloud Observability</title></head>"
+            "<body><h1>CloudScale Platform</h1>"
+            "<p>CloudScale delivers automated real-time observability, telemetry collection, and metrics analytics "
+            "for multi-cloud Kubernetes clusters. Built for high-growth Series B and Series C engineering organizations, "
+            "our platform ingests billions of distributed trace events per day across AWS, Google Cloud, and Azure environments. "
+            "Key integrations include Snowflake, Prometheus, Grafana, and Salesforce.</p></body></html>"
+        )
         return httpx.Response(200, text=html_content)
 
     mock_transport = httpx.MockTransport(handle_request)
@@ -136,6 +165,55 @@ async def test_research_agent_successful_run():
     assert "https://cloudscaledata.io" in result.source_urls
     assert len(result.raw_context_used) >= 1
     assert len(result.errors) == 0
+
+
+@pytest.mark.asyncio
+async def test_research_agent_403_forbidden():
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, text="Forbidden - Cloudflare Protection")
+
+    mock_transport = httpx.MockTransport(handle_request)
+    mock_http_client = httpx.AsyncClient(transport=mock_transport)
+
+    agent = ResearchAgent(http_client=mock_http_client)
+    text, err = await agent.fetch_web_content("https://protected-site.com")
+    assert text is None
+    assert err is not None
+    assert "403 Forbidden" in err
+    assert "Cloudflare" in err
+
+
+@pytest.mark.asyncio
+async def test_research_agent_timeout():
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("Request timed out")
+
+    mock_transport = httpx.MockTransport(handle_request)
+    mock_http_client = httpx.AsyncClient(transport=mock_transport)
+
+    agent = ResearchAgent(http_client=mock_http_client)
+    text, err = await agent.fetch_web_content("https://slow-site.com")
+    assert text is None
+    assert err is not None
+    assert "timed out" in err.lower()
+
+
+@pytest.mark.asyncio
+async def test_research_agent_under_300_characters():
+    # JavaScript SPA stub with less than 300 characters of readable text
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        stub_html = "<html><head><title>App</title></head><body><div id='root'>Loading...</div></body></html>"
+        return httpx.Response(200, text=stub_html)
+
+    mock_transport = httpx.MockTransport(handle_request)
+    mock_http_client = httpx.AsyncClient(transport=mock_transport)
+
+    agent = ResearchAgent(http_client=mock_http_client)
+    text, err = await agent.fetch_web_content("https://spa-app.io")
+    assert text is None
+    assert err is not None
+    assert "too little readable content" in err
+    assert "JavaScript-rendered" in err
 
 
 @pytest.mark.asyncio
