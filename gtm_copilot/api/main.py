@@ -172,10 +172,12 @@ def create_app() -> FastAPI:
         """Readiness and health check endpoint."""
         orchestrator = getattr(application.state, "orchestrator", None)
         models_loaded = orchestrator is not None
+        reranker_enabled = os.getenv("ENABLE_CROSS_ENCODER", "false").lower() in ("true", "1", "yes")
         return {
             "status": "ok",
             "ready": models_loaded,
             "models_loaded": models_loaded,
+            "reranker_enabled": reranker_enabled,
         }
 
     @application.post(

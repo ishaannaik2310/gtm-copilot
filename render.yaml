@@ -17,3 +17,6 @@ services:
         value: .cache/huggingface
       - key: ANONYMIZED_TELEMETRY
         value: "False"
+      # Cross-encoder reranker: disabled by default to minimize memory & latency on free tier
+      - key: ENABLE_CROSS_ENCODER
+        value: "false"

@@ -123,6 +123,8 @@ def test_health_check(client):
     assert data["status"] == "ok"
     assert data["ready"] is True
     assert data["models_loaded"] is True
+    assert "reranker_enabled" in data
+    assert data["reranker_enabled"] is False
 
 
 def test_health_check_not_ready():
@@ -135,6 +137,8 @@ def test_health_check_not_ready():
     assert data["status"] == "ok"
     assert data["ready"] is False
     assert data["models_loaded"] is False
+    assert "reranker_enabled" in data
+    assert data["reranker_enabled"] is False
 
 
 def test_generate_brief_success(client):

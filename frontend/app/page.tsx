@@ -37,7 +37,7 @@ import type {
   ICPFitLabel,
   PipelineMetrics,
 } from "../types/brief";
-import { STATIC_EXAMPLES } from "./examples";
+import { STATIC_EXAMPLES, type ExampleMetadata } from "./examples";
 
 /* ============================================================
    API Helpers (preserved from prior implementation)
@@ -251,7 +251,7 @@ export default function Home() {
   // Observability & Pre-warm states
   const [isServerWarming, setIsServerWarming] = useState(true);
   const [showHeaderMetrics, setShowHeaderMetrics] = useState(false);
-  const [isPreGenerated, setIsPreGenerated] = useState(false);
+  const [selectedExampleMetadata, setSelectedExampleMetadata] = useState<ExampleMetadata | null>(null);
 
   // Results
   const [briefResult, setBriefResult] = useState<FactCheckedBrief | null>(null);
@@ -366,7 +366,7 @@ export default function Home() {
     setUrl(example.url);
     setBriefResult(example.data);
     setOutreachResult(null);
-    setIsPreGenerated(true);
+    setSelectedExampleMetadata(example.metadata);
     setActiveTab("brief");
     if (example.data.fact_checks.length > 0) {
       setSelectedClaim(example.data.fact_checks[0]);
@@ -382,7 +382,7 @@ export default function Home() {
       return;
     }
     setError(null);
-    setIsPreGenerated(false);
+    setSelectedExampleMetadata(null);
     setBriefResult(null);
     setOutreachResult(null);
     setContactName("");
@@ -670,7 +670,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Presets */}
+            {/* Presets & Saved Real Pipeline Runs */}
             <div className="mt-4 pt-3.5 border-t border-fn-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
                 <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px]">Presets:</span>
@@ -690,6 +690,27 @@ export default function Home() {
                 >
                   GitHub
                 </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-fn-proof" /> Saved Runs:
+                </span>
+                {STATIC_EXAMPLES.map((ex) => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => handleLoadExample(ex.id)}
+                    disabled={isLoadingBrief || isLoadingOutreach}
+                    className="px-2.5 py-1 rounded bg-amber-950/30 border border-amber-800/40 hover:bg-amber-900/30 text-fn-proof text-xs font-display font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                    title={`Saved output from a real run on ${new Date(ex.metadata.generated_at).toLocaleString()} using ${ex.metadata.model}`}
+                  >
+                    <span>⚡ {ex.name}</span>
+                    <span className="text-[10px] opacity-75 font-mono">
+                      {Math.round(ex.metadata.faithfulness_score * 100)}%
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </form>
@@ -775,16 +796,19 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in-up">
             {/* ── Left Column: Content (7/12) ─────────── */}
             <div className="lg:col-span-7 space-y-8">
-              {/* Pre-generated static indicator */}
-              {isPreGenerated && (
-                <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono text-amber-300">
-                  <div className="flex items-center gap-2">
+              {/* Saved real pipeline run banner */}
+              {selectedExampleMetadata && (
+                <div className="p-3.5 rounded-xl bg-fn-surface border border-fn-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-fn-text-primary">
                     <Sparkles className="w-3.5 h-3.5 text-fn-proof shrink-0" />
-                    <span>Pre-generated Example Dossier (rendered instantly, 0 API calls)</span>
+                    <span>
+                      Saved output from a real run on {new Date(selectedExampleMetadata.generated_at).toLocaleDateString()} using {selectedExampleMetadata.model}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-fn-text-tertiary">
-                    Live generation available via &quot;Research &amp; Qualify&quot; above
-                  </span>
+                  <div className="flex items-center gap-3 text-fn-text-tertiary text-[11px]">
+                    <span>Commit: <span className="text-fn-text-secondary">{selectedExampleMetadata.git_commit.slice(0, 7)}</span></span>
+                    <span>Faithfulness: <span className="text-fn-proof font-semibold">{Math.round(selectedExampleMetadata.faithfulness_score * 100)}%</span></span>
+                  </div>
                 </div>
               )}
 
