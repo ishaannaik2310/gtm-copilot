@@ -670,10 +670,10 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Presets & Instant Static Examples */}
+            {/* Presets */}
             <div className="mt-4 pt-3.5 border-t border-fn-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px]">Fill Inputs:</span>
+                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px]">Presets:</span>
                 <button
                   type="button"
                   onClick={() => { setCompanyName("Notion"); setUrl("https://www.notion.so"); setError(null); }}
@@ -689,32 +689,6 @@ export default function Home() {
                   className="px-2 py-0.5 rounded bg-fn-elevated hover:bg-fn-border text-fn-text-secondary text-xs font-display transition-colors cursor-pointer"
                 >
                   GitHub
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-fn-text-tertiary font-mono uppercase tracking-wider text-[11px] flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-fn-proof" /> Instant Examples:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleLoadExample("notion")}
-                  disabled={isLoadingBrief || isLoadingOutreach}
-                  className="px-2.5 py-1 rounded bg-amber-950/30 border border-amber-800/40 hover:bg-amber-900/30 text-fn-proof text-xs font-display font-medium transition-colors cursor-pointer flex items-center gap-1.5"
-                  title="Load pre-generated Notion brief instantly (0 API calls)"
-                >
-                  <span>⚡ Notion</span>
-                  <span className="text-[10px] opacity-75 font-mono">Pre-generated</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLoadExample("github")}
-                  disabled={isLoadingBrief || isLoadingOutreach}
-                  className="px-2.5 py-1 rounded bg-amber-950/30 border border-amber-800/40 hover:bg-amber-900/30 text-fn-proof text-xs font-display font-medium transition-colors cursor-pointer flex items-center gap-1.5"
-                  title="Load pre-generated GitHub brief instantly (0 API calls)"
-                >
-                  <span>⚡ GitHub</span>
-                  <span className="text-[10px] opacity-75 font-mono">Pre-generated</span>
                 </button>
               </div>
             </div>
